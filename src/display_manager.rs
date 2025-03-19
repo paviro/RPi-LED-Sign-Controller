@@ -1,4 +1,4 @@
-use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType};
+use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType, DisplayConfig};
 use embedded_graphics::{
     mono_font::{ascii::FONT_10X20, MonoTextStyle},
     text::Text,
@@ -6,7 +6,7 @@ use embedded_graphics::{
     geometry::Point,
     Drawable,
 };
-use rpi_led_panel::{RGBMatrix, RGBMatrixConfig, HardwareMapping, Canvas};
+use rpi_led_panel::{RGBMatrix, Canvas};
 use std::time::{Duration, Instant};
 use once_cell::sync::Lazy;
 use log::{info, error, debug};
@@ -18,6 +18,7 @@ pub struct DisplayManager {
     matrix: RGBMatrix,
     pub canvas: Option<Box<Canvas>>,
     pub display_width: i32,
+    pub display_height: i32,
     pub text_width: i32,
     pub last_transition: Instant,
     pub current_repeat: u32,  // Track current repeat count
@@ -25,80 +26,91 @@ pub struct DisplayManager {
     pub completed_scrolls: u32, // Count completed scrolls
     pub border_animation_state: f32, // Animation state (0.0-1.0)
     pub last_animation_update: Instant,
+    config: DisplayConfig, // Our clearer config object
 }
 
 impl DisplayManager {
     pub fn new() -> Self {
-        Self::with_brightness(100)  // Start at full brightness
+        Self::with_brightness(100)
     }
 
     pub fn with_brightness(brightness: u8) -> Self {
-        let brightness = brightness.clamp(0, 100);
-        let config = RGBMatrixConfig {
-            hardware_mapping: HardwareMapping::regular(),
-            rows: 32,
-            cols: 192,
-            slowdown: Some(4),
-            refresh_rate: 120,
-            pwm_bits: 11,
-            pwm_lsb_nanoseconds: 130,
-            interlaced: false,
-            dither_bits: 0,
-            led_brightness: brightness,  // Set brightness in config
-            ..RGBMatrixConfig::default()
-        };
-
-        let (matrix, canvas) = RGBMatrix::new(config, 0).expect("Matrix initialization failed");
+        // Get config from command-line args
+        let mut display_config = DisplayConfig::from_args();
         
+        // Override brightness with the requested value
+        display_config.brightness = brightness.clamp(0, 100);
+        
+        // Calculate display dimensions
+        let display_width = display_config.display_width();
+        let display_height = display_config.display_height();
+        
+        info!("Initializing display: {}x{} (rows={}, cols={}, chain={}, parallel={})",
+              display_width, display_height, display_config.rows, display_config.cols, 
+              display_config.chain_length, display_config.parallel);
+        
+        // Create the matrix config and initialize the matrix
+        let matrix_config = display_config.to_matrix_config();
+        let (matrix, canvas) = RGBMatrix::new(matrix_config, 0)
+            .expect("Matrix initialization failed");
+        
+        // Get default playlist
         let default_playlist = Playlist::default();
         
         Self {
             playlist: default_playlist,
             matrix,
             canvas: Some(canvas),
-            display_width: 192,
+            display_width,
+            display_height,
             text_width: 0,
             last_transition: Instant::now(),
             current_repeat: 0,
-            scroll_position: 192,
+            scroll_position: display_width,
             completed_scrolls: 0,
             border_animation_state: 0.0,
             last_animation_update: Instant::now(),
+            config: display_config,
         }
     }
 
     pub fn with_playlist(playlist: Playlist) -> Self {
-        // Get brightness from the playlist instead of the active item
+        // Get brightness from the playlist
         let brightness = playlist.brightness;
         
-        let config = RGBMatrixConfig {
-            hardware_mapping: HardwareMapping::regular(),
-            rows: 32,
-            cols: 192,
-            slowdown: Some(4),
-            refresh_rate: 120,
-            pwm_bits: 11,
-            pwm_lsb_nanoseconds: 130,
-            interlaced: false,
-            dither_bits: 2,
-            led_brightness: brightness,
-            ..RGBMatrixConfig::default()
-        };
-
-        let (matrix, canvas) = RGBMatrix::new(config, 0).expect("Matrix initialization failed");
+        // Get config from command-line args
+        let mut display_config = DisplayConfig::from_args();
+        
+        // Override brightness with the requested value
+        display_config.brightness = brightness.clamp(0, 100);
+        
+        // Calculate display dimensions
+        let display_width = display_config.display_width();
+        let display_height = display_config.display_height();
+        
+        info!("Initializing display with playlist: {}x{} (rows={}, cols={}, chain={}, parallel={})",
+              display_width, display_height, display_config.rows, display_config.cols, 
+              display_config.chain_length, display_config.parallel);
+        
+        // Create the matrix config and initialize the matrix
+        let matrix_config = display_config.to_matrix_config();
+        let (matrix, canvas) = RGBMatrix::new(matrix_config, 0)
+            .expect("Matrix initialization failed");
         
         Self {
             playlist,
             matrix,
             canvas: Some(canvas),
-            display_width: 192,
+            display_width,
+            display_height,
             text_width: 0,
             last_transition: Instant::now(),
             current_repeat: 0,
-            scroll_position: 192,
+            scroll_position: display_width,
             completed_scrolls: 0,
             border_animation_state: 0.0,
             last_animation_update: Instant::now(),
+            config: display_config,
         }
     }
 
@@ -214,8 +226,8 @@ impl DisplayManager {
     }
     
     fn draw_border(&self, canvas: &mut Box<Canvas>, effect: &BorderEffect) {
-        let height = 32; // Panel height
-        let width = 192; // Panel width
+        let height = self.display_height; // Use calculated display height
+        let width = self.display_width; // Use calculated display width
         
         match effect {
             BorderEffect::None => {
@@ -359,7 +371,7 @@ impl DisplayManager {
                 };
                 
                 let segments = colors.len();
-                let perimeter = 2 * (width + height - 2);
+                let perimeter = 2 * ((width as usize) + (height as usize) - 2);
                 let segment_length = perimeter / segments;
                 
                 // Calculate offset for animation
@@ -386,22 +398,26 @@ impl DisplayManager {
                     let b = (b1 as f32 * (1.0 - segment_progress) + b2 as f32 * segment_progress) as u8;
                     
                     // Map position to actual pixel on display (2 pixels thick)
-                    if pos < width {
+                    if pos < width as usize {
                         // Top border
-                        canvas.set_pixel(pos as usize, 0, r, g, b);
-                        canvas.set_pixel(pos as usize, 1, r, g, b); // Second row
-                    } else if pos < width * 2 {
+                        canvas.set_pixel(pos, 0, r, g, b);
+                        canvas.set_pixel(pos, 1, r, g, b); // Second row
+                    } else if pos < (width as usize) * 2 {
                         // Bottom border
-                        canvas.set_pixel((pos - width) as usize, (height - 1) as usize, r, g, b);
-                        canvas.set_pixel((pos - width) as usize, (height - 2) as usize, r, g, b); // Second row
-                    } else if pos < width * 2 + height - 2 {
+                        canvas.set_pixel(pos - width as usize, (height - 1) as usize, r, g, b);
+                        canvas.set_pixel(pos - width as usize, (height - 2) as usize, r, g, b); // Second row
+                    } else if pos < (width as usize) * 2 + (height as usize) - 2 {
                         // Left border (excluding corners)
-                        canvas.set_pixel(0, (pos - width * 2 + 1) as usize, r, g, b);
-                        canvas.set_pixel(1, (pos - width * 2 + 1) as usize, r, g, b); // Second column
+                        canvas.set_pixel(0, pos - (width as usize) * 2 + 1, r, g, b);
+                        canvas.set_pixel(1, pos - (width as usize) * 2 + 1, r, g, b); // Second column
                     } else {
                         // Right border (excluding corners)
-                        canvas.set_pixel((width - 1) as usize, (pos - (width * 2 + height - 2) + 1) as usize, r, g, b);
-                        canvas.set_pixel((width - 2) as usize, (pos - (width * 2 + height - 2) + 1) as usize, r, g, b); // Second column
+                        canvas.set_pixel((width - 1) as usize, 
+                                       pos - (width as usize) * 2 - (height as usize) + 2 + 1, 
+                                       r, g, b);
+                        canvas.set_pixel((width - 2) as usize, 
+                                       pos - (width as usize) * 2 - (height as usize) + 2 + 1, 
+                                       r, g, b); // Second column
                     }
                 }
             }
@@ -418,8 +434,11 @@ impl DisplayManager {
         
         self.text_width = self.calculate_text_width(&current.text, &default_text_style);
         
-        // Adjust the vertical centering calculation
-        let vertical_position = 22;  // This value centers most fonts better
+        // Dynamic vertical centering calculation
+        // FONT_10X20 is 20 pixels high
+        let font_height = 20;
+        let baseline_adjustment = 5; // Adjust this value as needed for visual centering
+        let vertical_position = (self.display_height / 2) + (font_height / 2) - baseline_adjustment;
         
         if current.colored_segments.is_some() && !current.colored_segments.as_ref().unwrap().is_empty() {
             // Render text with multiple colors
@@ -476,7 +495,7 @@ impl DisplayManager {
                     .unwrap();
             }
         } else {
-            // Render text with a single color (existing code)
+            // Render text with a single color
             if current.scroll {
                 Text::new(&current.text, Point::new(position, vertical_position), default_text_style)
                     .draw(&mut *canvas)
@@ -504,25 +523,32 @@ impl DisplayManager {
         let brightness = brightness.clamp(0, 100);
         info!("Reinitializing display with brightness: {}", brightness);
         
-        let config = RGBMatrixConfig {
-            hardware_mapping: HardwareMapping::regular(),
-            rows: 32,
-            cols: 192,
-            slowdown: Some(4),
-            refresh_rate: 120,
-            pwm_bits: 11,
-            pwm_lsb_nanoseconds: 130,
-            interlaced: false,
-            dither_bits: 2,
-            led_brightness: brightness,
-            ..RGBMatrixConfig::default()
-        };
-
-        match RGBMatrix::new(config, 0) {
+        // Update our config
+        let mut display_config = self.config.clone();
+        display_config.brightness = brightness;
+        
+        // Create matrix config and log details
+        let matrix_config = display_config.to_matrix_config();
+        
+        info!("Reinitializing display: {}x{} (rows={}, cols={}, chain={}, parallel={}, brightness={})",
+              display_config.display_width(), display_config.display_height(),
+              display_config.rows, display_config.cols, 
+              display_config.chain_length, display_config.parallel, brightness);
+        
+        // Initialize the matrix
+        match RGBMatrix::new(matrix_config, 0) {
             Ok((matrix, canvas)) => {
                 debug!("Matrix reinitialized successfully");
                 self.matrix = matrix;
                 self.canvas = Some(canvas);
+                
+                // Update our configuration
+                self.config = display_config;
+                
+                // Update dimensions
+                self.display_width = self.config.display_width();
+                self.display_height = self.config.display_height();
+                self.scroll_position = self.display_width;
                 
                 // Update global brightness in the playlist
                 self.playlist.brightness = brightness;
