@@ -18,8 +18,8 @@ pub struct DisplayContent {
 pub enum BorderEffect {
     None,
     Rainbow,
-    Pulse,
-    Sparkle,
+    Pulse { colors: Vec<(u8, u8, u8)> },
+    Sparkle { colors: Vec<(u8, u8, u8)> },
     Gradient { colors: Vec<(u8, u8, u8)> },
 }
 

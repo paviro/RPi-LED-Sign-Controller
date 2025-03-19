@@ -257,13 +257,13 @@ document.addEventListener('alpine:init', () => {
                         // Convert to lowercase for our frontend representation
                         this.selectedBorderEffect = effectType.toLowerCase();
                         
-                        // Special handling for gradient colors
-                        if (effectType === 'Gradient' && 
-                            item.border_effect.Gradient && 
-                            item.border_effect.Gradient.colors) {
+                        // Special handling for gradient, pulse, and sparkle colors
+                        if ((effectType === 'Gradient' || effectType === 'Pulse' || effectType === 'Sparkle') && 
+                            item.border_effect[effectType] && 
+                            item.border_effect[effectType].colors) {
                             
-                            this.gradientColors = item.border_effect.Gradient.colors.length > 0 ? 
-                                [...item.border_effect.Gradient.colors] : [];
+                            this.gradientColors = item.border_effect[effectType].colors.length > 0 ? 
+                                [...item.border_effect[effectType].colors] : [];
                         }
                     }
                 }
@@ -275,8 +275,8 @@ document.addEventListener('alpine:init', () => {
         selectBorderEffect(effect) {
             this.selectedBorderEffect = effect;
             
-            // If selecting gradient and no colors exist, initialize with an empty array
-            if (effect === 'gradient' && this.gradientColors.length === 0) {
+            // If selecting gradient, pulse, or sparkle and no colors exist, initialize with an empty array
+            if ((effect === 'gradient' || effect === 'pulse' || effect === 'sparkle') && this.gradientColors.length === 0) {
                 this.gradientColors = [];
             }
         },
@@ -330,15 +330,27 @@ document.addEventListener('alpine:init', () => {
                     borderEffect = { Rainbow: null };
                     break;
                 case 'pulse':
-                    borderEffect = { Pulse: null };
+                    // Use the same color management as gradient
+                    if (this.gradientColors.length > 0) {
+                        borderEffect = { Pulse: { colors: this.gradientColors } };
+                    } else {
+                        // If no colors, use an empty array which will default to text color
+                        borderEffect = { Pulse: { colors: [] } };
+                    }
                     break;
                 case 'sparkle':
-                    borderEffect = { Sparkle: null };
+                    // Use the same color management as gradient
+                    if (this.gradientColors.length > 0) {
+                        borderEffect = { Sparkle: { colors: this.gradientColors } };
+                    } else {
+                        // If no colors, use an empty array which will default to text color
+                        borderEffect = { Sparkle: { colors: [] } };
+                    }
                     break;
                 case 'gradient':
                     // Only save gradient if there are colors
                     if (this.gradientColors.length > 0) {
-                    borderEffect = { Gradient: { colors: this.gradientColors } };
+                        borderEffect = { Gradient: { colors: this.gradientColors } };
                     } else {
                         // Default to None if no gradient colors are set
                         borderEffect = { None: null };

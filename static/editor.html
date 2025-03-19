@@ -173,10 +173,13 @@
                     </div>
                 </div>
                 
-                <!-- Gradient color options, shown only when gradient effect is selected -->
-                <div id="gradient-colors" class="gradient-colors" :class="{'visible': selectedBorderEffect === 'gradient'}">
+                <!-- Gradient color options, shown for gradient, pulse, and sparkle effects -->
+                <div id="gradient-colors" class="gradient-colors" 
+                     :class="{'visible': selectedBorderEffect === 'gradient' || selectedBorderEffect === 'pulse' || selectedBorderEffect === 'sparkle'}">
                     <div class="gradient-header">
-                        <h5>Colors:</h5>
+                        <h5 x-text="selectedBorderEffect === 'gradient' ? 'Gradient Colors:' : 
+                                    selectedBorderEffect === 'pulse' ? 'Pulse Colors:' : 
+                                    'Sparkle Colors:'"></h5>
                         <button class="add-btn" @click="addGradientColor()">+ Add Color</button>
                     </div>
                     <div id="gradient-color-stops">
@@ -195,7 +198,11 @@
                     </div>
                     <template x-if="gradientColors.length === 0">
                         <div class="empty-gradient-message">
-                            <p>No colors added yet. Click "Add Color" to add colors.</p>
+                            <p x-text="selectedBorderEffect === 'pulse' ? 
+                                       'No colors added yet. Default will use text color. Click \"Add Color\" to add colors.' : 
+                                       selectedBorderEffect === 'sparkle' ? 
+                                       'No colors added yet. Default will use text color. Click \"Add Color\" to add colors.' :
+                                       'No colors added yet. Click \"Add Color\" to add colors.'"></p>
                         </div>
                     </template>
                     <div class="color-picker-instruction">

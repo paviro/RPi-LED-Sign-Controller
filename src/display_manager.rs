@@ -10,7 +10,6 @@ use rpi_led_panel::{RGBMatrix, RGBMatrixConfig, HardwareMapping, Canvas};
 use std::time::{Duration, Instant};
 use once_cell::sync::Lazy;
 use log::{info, error, debug};
-use std::f32::consts::PI;
 use rand::Rng;
 
 // Structure to manage our LED matrix state
@@ -208,8 +207,9 @@ impl DisplayManager {
         let dt = now.duration_since(self.last_animation_update).as_secs_f32();
         self.last_animation_update = now;
         
-        // Update animation state (complete one cycle every 2 seconds)
-        self.border_animation_state = (self.border_animation_state + dt * 0.5) % 1.0;
+        // Just accumulate time without the modulo operation
+        // Allow it to grow continuously to handle multiple colors and long cycles
+        self.border_animation_state += dt;
     }
     
     fn draw_border(&self, canvas: &mut Box<Canvas>, effect: &BorderEffect) {
@@ -226,67 +226,122 @@ impl DisplayManager {
                     let hue = (i as f32 / width as f32 + self.border_animation_state) % 1.0;
                     let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
                     
-                    // Top and bottom borders
+                    // Top and bottom borders (2 pixels thick)
                     canvas.set_pixel(i as usize, 0, r, g, b);
+                    canvas.set_pixel(i as usize, 1, r, g, b); // Second row for top
                     canvas.set_pixel(i as usize, (height - 1) as usize, r, g, b);
+                    canvas.set_pixel(i as usize, (height - 2) as usize, r, g, b); // Second row for bottom
                 }
                 
                 for i in 0..height {
                     let hue = (i as f32 / height as f32 + self.border_animation_state) % 1.0;
                     let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
                     
-                    // Left and right borders
+                    // Left and right borders (2 pixels thick)
                     canvas.set_pixel(0, i as usize, r, g, b);
+                    canvas.set_pixel(1, i as usize, r, g, b); // Second column for left
                     canvas.set_pixel((width - 1) as usize, i as usize, r, g, b);
+                    canvas.set_pixel((width - 2) as usize, i as usize, r, g, b); // Second column for right
                 }
             },
-            BorderEffect::Pulse => {
-                // Pulsing border (changes intensity)
-                let brightness = (self.border_animation_state * 2.0 * PI).sin() * 0.5 + 0.5;
-                let current = self.get_current_content();
-                let (r, g, b) = current.color;
-                let (r, g, b) = (
-                    (r as f32 * brightness) as u8,
-                    (g as f32 * brightness) as u8,
-                    (b as f32 * brightness) as u8
-                );
+            BorderEffect::Pulse { colors } => {
+                // Get colors to use - either from the effect or default to text color
+                let color_options = if colors.is_empty() {
+                    let current = self.get_current_content();
+                    vec![current.color]
+                } else {
+                    colors.clone()
+                };
                 
-                // Draw border with varying intensity
+                // If we have no colors, don't render anything
+                if color_options.is_empty() {
+                    return;
+                }
+                
+                // Speed up the animation by adjusting the time factor
+                let adjusted_time = self.border_animation_state * 0.7;
+                
+                // Each color cycle: 2 seconds (1s fade in, 1s fade out)
+                let seconds_per_color = 2.0;
+                let total_cycle = seconds_per_color * color_options.len() as f32;
+                
+                // Figure out which color we're currently displaying
+                let current_position = adjusted_time % total_cycle;
+                let color_index = (current_position / seconds_per_color) as usize;
+                
+                // Safety check for array bounds
+                if color_index >= color_options.len() {
+                    return;
+                }
+                
+                // Calculate brightness using a triangle wave
+                let progress_in_color = (current_position % seconds_per_color) / seconds_per_color;
+                
+                let brightness = if progress_in_color < 0.5 {
+                    progress_in_color * 2.0 // 0.0 -> 1.0
+                } else {
+                    (1.0 - progress_in_color) * 2.0 // 1.0 -> 0.0
+                };
+                
+                // Get the color and apply brightness
+                let (r, g, b) = color_options[color_index];
+                let r = (r as f32 * brightness) as u8;
+                let g = (g as f32 * brightness) as u8;
+                let b = (b as f32 * brightness) as u8;
+                
+                // Draw the border (2 pixels thick)
                 for i in 0..width {
                     // Top and bottom borders
                     canvas.set_pixel(i as usize, 0, r, g, b);
+                    canvas.set_pixel(i as usize, 1, r, g, b); // Second row for top
                     canvas.set_pixel(i as usize, (height - 1) as usize, r, g, b);
+                    canvas.set_pixel(i as usize, (height - 2) as usize, r, g, b); // Second row for bottom
                 }
                 
                 for i in 0..height {
                     // Left and right borders
                     canvas.set_pixel(0, i as usize, r, g, b);
+                    canvas.set_pixel(1, i as usize, r, g, b); // Second column for left
                     canvas.set_pixel((width - 1) as usize, i as usize, r, g, b);
+                    canvas.set_pixel((width - 2) as usize, i as usize, r, g, b); // Second column for right
                 }
             },
-            BorderEffect::Sparkle => {
-                // Sparkle effect (random dots along border)
+            BorderEffect::Sparkle { colors } => {
+                // If no colors provided, use the text color as default
                 let mut rng = rand::thread_rng();
-                let current = self.get_current_content();
-                let (r, g, b) = current.color;
+                let color_options = if colors.is_empty() {
+                    let current = self.get_current_content();
+                    vec![current.color]
+                } else {
+                    colors.clone()
+                };
                 
-                // Create sparkles based on animation state
-                for _ in 0..20 {
+                // Create sparkles based on animation state - increase count for thicker border
+                for _ in 0..30 { // Increased from 20 to provide more density for 2-pixel border
+                    // Randomly select one of the available colors
+                    let color_index = rng.gen_range(0..color_options.len());
+                    let (r, g, b) = color_options[color_index];
+                    
                     // Random position along the border
                     let pos = rng.gen_range(0..2 * (width + height - 2));
+                    let inner = rng.gen_bool(0.5); // 50% chance for inner or outer pixel
                     
                     if pos < width {
                         // Top border
-                        canvas.set_pixel(pos as usize, 0, r, g, b);
+                        let row = if inner { 1 } else { 0 };
+                        canvas.set_pixel(pos as usize, row, r, g, b);
                     } else if pos < width * 2 {
                         // Bottom border
-                        canvas.set_pixel((pos - width) as usize, (height - 1) as usize, r, g, b);
+                        let row = if inner { height - 2 } else { height - 1 } as usize;
+                        canvas.set_pixel((pos - width) as usize, row, r, g, b);
                     } else if pos < width * 2 + height - 2 {
                         // Left border (excluding corners)
-                        canvas.set_pixel(0, (pos - width * 2 + 1) as usize, r, g, b);
+                        let col = if inner { 1 } else { 0 };
+                        canvas.set_pixel(col, (pos - width * 2 + 1) as usize, r, g, b);
                     } else {
                         // Right border (excluding corners)
-                        canvas.set_pixel((width - 1) as usize, (pos - (width * 2 + height - 2) + 1) as usize, r, g, b);
+                        let col = if inner { width - 2 } else { width - 1 } as usize;
+                        canvas.set_pixel(col, (pos - (width * 2 + height - 2) + 1) as usize, r, g, b);
                     }
                 }
             },
@@ -329,19 +384,23 @@ impl DisplayManager {
                     let g = (g1 as f32 * (1.0 - segment_progress) + g2 as f32 * segment_progress) as u8;
                     let b = (b1 as f32 * (1.0 - segment_progress) + b2 as f32 * segment_progress) as u8;
                     
-                    // Map position to actual pixel on display
+                    // Map position to actual pixel on display (2 pixels thick)
                     if pos < width {
                         // Top border
                         canvas.set_pixel(pos as usize, 0, r, g, b);
+                        canvas.set_pixel(pos as usize, 1, r, g, b); // Second row
                     } else if pos < width * 2 {
                         // Bottom border
                         canvas.set_pixel((pos - width) as usize, (height - 1) as usize, r, g, b);
+                        canvas.set_pixel((pos - width) as usize, (height - 2) as usize, r, g, b); // Second row
                     } else if pos < width * 2 + height - 2 {
                         // Left border (excluding corners)
                         canvas.set_pixel(0, (pos - width * 2 + 1) as usize, r, g, b);
+                        canvas.set_pixel(1, (pos - width * 2 + 1) as usize, r, g, b); // Second column
                     } else {
                         // Right border (excluding corners)
                         canvas.set_pixel((width - 1) as usize, (pos - (width * 2 + height - 2) + 1) as usize, r, g, b);
+                        canvas.set_pixel((width - 2) as usize, (pos - (width * 2 + height - 2) + 1) as usize, r, g, b); // Second column
                     }
                 }
             }
