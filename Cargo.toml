@@ -1,5 +1,8 @@
 [package]
 name = "rpi_led_sign_controller"
+description= "Controlls a led matrix display with various features and a web config interface."
+authors = ["Paul-Vincent Roll"]
+repository = "https://github.com/paviro/rpi-led-sign-controller"
 version = "0.1.0"
 edition = "2021"
 
