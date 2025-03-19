@@ -4,120 +4,219 @@
     <title>Edit Message - LED Sign Controller</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alwan/dist/css/alwan.min.css" />
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body>
     <header>
         <h1>LED Sign Controller</h1>
     </header>
 
-    <main>
+    <main x-data="editorApp">
         <section id="editor-page" class="page">
             <div class="page-header">
-                <h2 id="editor-title">Edit Message</h2>
+                <h2 id="editor-title" x-text="editingIndex === -1 ? 'Add New Message' : 'Edit Message'"></h2>
                 <a href="/" class="back-button">← Back to Playlist</a>
             </div>
             
+            <!-- Text Editor Section -->
             <div class="control-group">
                 <label for="text">Message Text:</label>
                 <div class="text-editor-container">
-                    <div id="richTextEditor" class="rich-text-editor" contenteditable="true"></div>
                     <div class="text-toolbar">
-                        <button type="button" id="applyColorBtn" class="text-color-btn">Apply Color</button>
-                        <button type="button" id="resetColorBtn" class="text-color-btn">Reset Selection</button>
+                        <label class="color-tool-btn">
+                            Text Color: 
+                            <input type="color" 
+                                  :value="textColorHex" 
+                                  @input="handleTextColorChange($event.target.value)"
+                                  class="large-color-swatch">
+                        </label>
+                        
+                        <!-- Rainbow buttons -->
+                        <button class="color-tool-btn rainbow-btn" @click="randomizeAlternateWords()">
+                            🌈 Rainbow Words
+                        </button>
+                        
+                        <button class="color-tool-btn rainbow-btn" @click="randomizeLetters()">
+                            🌈 Rainbow Letters
+                        </button>
                     </div>
-                    <input type="hidden" id="text" name="text">
+                    <div id="richTextEditor" class="rich-text-editor" contenteditable="true" 
+                         @input="updateHiddenTextField"></div>
+                    <input type="hidden" id="text" name="text" x-model="formData.text">
                 </div>
             </div>
 
+            <!-- Scroll Toggle Section -->
             <div class="control-group">
                 <div class="checkbox-wrapper">
-                    <input type="checkbox" id="scroll" checked>
+                    <input type="checkbox" id="scroll" x-model="formData.scroll">
                     <label for="scroll">Scroll Text</label>
                 </div>
             </div>
 
-            <div class="control-group" id="scroll-controls">
-                <label for="speed">Scroll Speed:</label>
-                <div class="slider-container">
-                    <input type="range" id="speed" class="enhanced-slider" min="10" max="150" value="60" 
-                           oninput="document.getElementById('speed-value').textContent = this.value">
-                    <div class="value-display">
-                        <span id="speed-value">60</span> pixels/second
+            <!-- Scroll settings shown when scrolling is enabled -->
+            <div id="scroll-controls" x-show="formData.scroll" class="settings-panel">
+                <div class="control-group">
+                    <label>Scroll Speed:</label>
+                    
+                    <!-- Speed presets -->
+                    <div class="speed-presets">
+                        <label class="preset-option">
+                            <input type="radio" name="speed-preset" value="slow" 
+                                   x-model="speedPreset" @change="setSpeedPreset('slow')">
+                            Slow
+                        </label>
+                        <label class="preset-option">
+                            <input type="radio" name="speed-preset" value="normal" 
+                                   x-model="speedPreset" @change="setSpeedPreset('normal')">
+                            Normal
+                        </label>
+                        <label class="preset-option">
+                            <input type="radio" name="speed-preset" value="fast" 
+                                   x-model="speedPreset" @change="setSpeedPreset('fast')">
+                            Fast
+                        </label>
+                        <label class="preset-option">
+                            <input type="radio" name="speed-preset" value="custom" 
+                                   x-model="speedPreset" @change="setSpeedPreset('custom')">
+                            Custom
+                        </label>
+                    </div>
+                    
+                    <!-- Show slider only when custom is selected -->
+                    <div class="slider-with-value" x-show="speedPreset === 'custom'">
+                        <div class="slider-container">
+                            <input type="range" id="speed" class="enhanced-slider" 
+                                   min="10" max="150" 
+                                   x-model="formData.speed">
+                            <div class="value-display">
+                                <span x-text="formData.speed + ' px/sec'"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <label for="repeats" class="mt-10">Number of Scrolls:</label>
-                <div class="input-with-help">
-                    <input type="number" id="repeats" min="1" max="100" value="1">
-                    <div class="help-text">How many times this message should scroll across the screen before showing the next message</div>
-                </div>
-            </div>
-
-            <div class="control-group" id="static-controls">
-                <label for="duration">Display Duration:</label>
-                <div class="input-with-help">
-                    <input type="number" id="duration" min="1" max="300" value="10">
-                    <div class="help-text">How long to show this message (in seconds) before showing the next message</div>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <label>Text Color:</label>
-                <div class="color-picker-container">
-                    <div class="color-preview-wrapper">
-                        <div id="colorPreview" class="color-preview"></div>
-                        <div id="color-value">RGB: 255, 255, 255</div>
+                <!-- Scroll settings: Number of Repeats with plus/minus buttons -->
+                <div class="control-group">
+                    <label for="repeats">Number of Repeats:</label>
+                    <div class="number-input-container">
+                        <div class="number-input-row">
+                            <div class="number-input-group">
+                                <button class="number-btn" @click="decrementRepeats()">-</button>
+                                <input type="number" id="repeats" class="enhanced-number-input" 
+                                       min="1" x-model="formData.repeat_count">
+                                <button class="number-btn" @click="incrementRepeats()">+</button>
+                            </div>
+                            <span class="input-unit">times</span>
+                        </div>
                     </div>
-                    <div id="color-picker-container"></div>
                 </div>
             </div>
 
+            <!-- Static display settings shown when scrolling is disabled -->
+            <div id="static-controls" x-show="!formData.scroll" class="settings-panel">
+                <!-- Static display settings: Duration -->
+                <div class="control-group">
+                    <label for="duration">Display Duration:</label>
+                    <div class="number-input-container">
+                        <div class="number-input-row">
+                            <div class="number-input-group">
+                                <button class="number-btn" @click="decrementDuration()">-</button>
+                                <input type="number" id="duration" class="enhanced-number-input" 
+                                       min="1" x-model="formData.duration">
+                                <button class="number-btn" @click="incrementDuration()">+</button>
+                            </div>
+                            <span class="input-unit">seconds</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Border effects section -->
             <div class="control-group border-effect-section">
-                <label>Border Effect</label>
+                <h4>Border Effect:</h4>
                 <div class="effect-options">
-                    <div class="effect-option selected" data-effect="none" onclick="selectBorderEffect('none')">
-                        <div class="effect-option-icon">✖</div>
+                    <div class="effect-option" 
+                         :class="{ 'selected': selectedBorderEffect === 'none' }" 
+                         data-effect="none" 
+                         @click="selectBorderEffect('none')">
+                        <div class="effect-option-icon">-</div>
                         <span>None</span>
                     </div>
-                    <div class="effect-option" data-effect="rainbow" onclick="selectBorderEffect('rainbow')">
+                    <div class="effect-option" 
+                         :class="{ 'selected': selectedBorderEffect === 'rainbow' }" 
+                         data-effect="rainbow" 
+                         @click="selectBorderEffect('rainbow')">
                         <div class="effect-option-icon">🌈</div>
                         <span>Rainbow</span>
                     </div>
-                    <div class="effect-option" data-effect="pulse" onclick="selectBorderEffect('pulse')">
+                    <div class="effect-option" 
+                         :class="{ 'selected': selectedBorderEffect === 'pulse' }" 
+                         data-effect="pulse" 
+                         @click="selectBorderEffect('pulse')">
                         <div class="effect-option-icon">💓</div>
                         <span>Pulse</span>
                     </div>
-                    <div class="effect-option" data-effect="sparkle" onclick="selectBorderEffect('sparkle')">
+                    <div class="effect-option" 
+                         :class="{ 'selected': selectedBorderEffect === 'sparkle' }" 
+                         data-effect="sparkle" 
+                         @click="selectBorderEffect('sparkle')">
                         <div class="effect-option-icon">✨</div>
                         <span>Sparkle</span>
                     </div>
-                    <div class="effect-option" data-effect="gradient" onclick="selectBorderEffect('gradient')">
+                    <div class="effect-option" 
+                         :class="{ 'selected': selectedBorderEffect === 'gradient' }" 
+                         data-effect="gradient" 
+                         @click="selectBorderEffect('gradient')">
                         <div class="effect-option-icon">🎨</div>
-                        <span>Gradient</span>
+                        <span>Gradient / Color</span>
                     </div>
                 </div>
                 
-                <div id="gradient-colors" class="gradient-colors">
-                    <h4>Gradient Colors</h4>
-                    <div id="gradient-color-stops"></div>
-                    <button type="button" class="add-color-stop" onclick="addGradientColorStop()">
-                        + Add Color
-                    </button>
+                <!-- Gradient color options, shown only when gradient effect is selected -->
+                <div id="gradient-colors" class="gradient-colors" :class="{'visible': selectedBorderEffect === 'gradient'}">
+                    <div class="gradient-header">
+                        <h5>Colors:</h5>
+                        <button class="add-btn" @click="addGradientColor()">+ Add Color</button>
+                    </div>
+                    <div id="gradient-color-stops">
+                        <template x-for="(color, index) in gradientColors" :key="index">
+                            <div class="color-stop">
+                                <input type="color" 
+                                       :value="rgbToHex(color[0], color[1], color[2])" 
+                                       @input="updateGradientColor(index, $event.target.value)"
+                                       class="gradient-swatch">
+                                <span x-text="`Color ${index + 1}`"></span>
+                                <button class="remove-btn" 
+                                        @click="removeGradientColor(index)"
+                                        :disabled="gradientColors.length <= 1">×</button>
+                            </div>
+                        </template>
+                    </div>
+                    <template x-if="gradientColors.length === 0">
+                        <div class="empty-gradient-message">
+                            <p>No colors added yet. Click "Add Color" to add colors.</p>
+                        </div>
+                    </template>
+                    <div class="color-picker-instruction">
+                        <p>After adding a color, click the color square to open the color picker</p>
+                    </div>
                 </div>
             </div>
 
             <div class="button-row">
-                <button id="save-item-btn" class="primary-button">Save Message</button>
+                <button id="save-item-btn" class="primary-button" @click="saveItem">Save</button>
                 <a href="/" class="secondary-button button-link">Cancel</a>
             </div>
         </section>
     </main>
 
-    <div id="status" class="status"></div>
+    <div id="status" class="status" :class="statusVisible ? `visible ${statusType}` : ''">
+        <span x-text="statusMessage"></span>
+    </div>
 
     <script src="/static/js/utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alwan/dist/js/alwan.min.js"></script>
-    <script src="/static/js/editor.js"></script>
+    <script src="/static/js/textEditor.js"></script>
+    <script src="/static/js/editorManager.js"></script>
 </body>
 </html> 

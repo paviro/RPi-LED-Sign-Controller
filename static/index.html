@@ -4,44 +4,87 @@
     <title>LED Sign Controller</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Add Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body>
     <header>
         <h1>LED Sign Controller</h1>
     </header>
 
-    <main>
+    <main x-data="playlistApp">
         <section id="playlist-page" class="page">
             <h2>Message Playlist</h2>
             
             <div class="playlist-container">
                 <div id="playlist-items" class="playlist-items">
-                    <!-- Playlist items will be rendered here -->
+                    <!-- Empty playlist message -->
+                    <template x-if="playlistItems.length === 0">
+                        <div class="empty-playlist-message">
+                            <p>Your playlist is empty.</p>
+                            <p>Click the "Add New Message" button below to get started.</p>
+                        </div>
+                    </template>
+                    
+                    <!-- Playlist items -->
+                    <template x-for="(item, index) in playlistItems" :key="index">
+                        <div class="playlist-item" @click="editItem(index, $event)">
+                            <!-- Color indicator -->
+                            <div class="item-color" :style="`background-color: rgb(${item.color[0]},${item.color[1]},${item.color[2]})`"></div>
+                            
+                            <!-- Text content -->
+                            <div class="item-text" x-text="item.text"></div>
+                            
+                            <!-- Details -->
+                            <div class="item-details" x-text="getItemDetails(item)"></div>
+                            
+                            <!-- Action buttons -->
+                            <div class="item-actions">
+                                <a :href="`/editor?index=${index}`" class="item-action edit" title="Edit">✎</a>
+                                <button class="item-action up" 
+                                        :style="index === 0 ? 'opacity: 0.5' : ''" 
+                                        :disabled="index === 0"
+                                        @click.stop="moveItemUp(index)" 
+                                        title="Move Up">↑</button>
+                                <button class="item-action down" 
+                                        :style="index === playlistItems.length - 1 ? 'opacity: 0.5' : ''" 
+                                        :disabled="index === playlistItems.length - 1"
+                                        @click.stop="moveItemDown(index)" 
+                                        title="Move Down">↓</button>
+                                <button class="item-action delete" 
+                                        @click.stop="removePlaylistItem(index)" 
+                                        title="Delete">×</button>
+                            </div>
+                        </div>
+                    </template>
                 </div>
                 
                 <div class="button-row">
-                    <a href="/editor" class="primary-button button-link">Add New Message</a>
+                    <a href="/editor" class="primary-button button-link">Add New Item</a>
                 </div>
             </div>
         </section>
             
-        <!-- Separate section for brightness control -->
+        <!-- Brightness control section -->
         <section class="brightness-control-section">
             <h3>Display Brightness</h3>
             <div class="slider-container">
-                <input type="range" id="global-brightness" class="enhanced-slider" min="0" max="100" value="100" 
-                       oninput="document.getElementById('brightness-value').textContent = this.value + '%'; updateSliderFill();">
+                <input type="range" id="global-brightness" class="enhanced-slider" 
+                       min="0" max="100" x-model="brightness" 
+                       @input="updateSliderFill(); debouncedUpdateBrightness()">
                 <div class="value-display">
-                    <span id="brightness-value">100%</span>
+                    <span id="brightness-value" x-text="brightness + '%'"></span>
                 </div>
             </div>
         </section>
     </main>
 
-    <div id="status" class="status"></div>
+    <div id="status" class="status" :class="statusVisible ? `visible ${statusType}` : ''">
+        <span x-text="statusMessage"></span>
+    </div>
 
-    <!-- Add utils.js before playlist.js -->
+    <!-- Add utilities and playlist management -->
     <script src="/static/js/utils.js"></script>
-    <script src="/static/js/playlist.js"></script>
+    <script src="/static/js/playlistManager.js"></script>
 </body>
 </html> 

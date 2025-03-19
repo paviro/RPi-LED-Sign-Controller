@@ -65,7 +65,7 @@ section {
 
 label {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
     font-weight: 600;
     color: #555;
 }
@@ -172,6 +172,7 @@ button, .button-link {
     text-align: center;
     line-height: normal;
     text-decoration: none;
+    display: inline-block;
 }
 
 .primary-button {
@@ -186,6 +187,8 @@ button, .button-link {
 .secondary-button {
     background-color: var(--secondary-color);
     color: white;
+    display: inline-block;
+    text-decoration: none;
 }
 
 .secondary-button:hover {
@@ -459,7 +462,7 @@ button, .button-link {
     margin: 10px 0;
 }
 
-/* Add these styles to your existing CSS file */
+/* Add these styles to your existing CSS */
 .color-picker-container {
     margin-top: 15px;
 }
@@ -551,104 +554,563 @@ button, .button-link {
     height: 24px;
 }
 
-/* Enhanced sliders for better touch experience */
+/* Enhanced slider styles - revised to remove progress bar */
 .enhanced-slider {
     -webkit-appearance: none;
     appearance: none;
-    height: 60px; /* Much taller slider */
-    background: #eee;
-    border-radius: 30px;
+    height: 40px;
+    background: #f0f0f0; /* Solid background instead of gradient */
+    border-radius: 20px;
     outline: none;
-    transition: background 0.2s;
+    transition: all 0.3s ease;
     cursor: pointer;
-    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15);
     margin: 20px 0;
-    background: linear-gradient(to right, var(--primary-color), #f5f5f5);
-    background-size: 0% 100%;
-    background-repeat: no-repeat;
+    border: none;
 }
 
 .enhanced-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 70px;
-    height: 70px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: var(--primary-color);
     cursor: pointer;
-    border: 5px solid white;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-    transition: background 0.2s, transform 0.1s;
-    margin-top: -5px; /* To center the larger thumb */
+    border: 4px solid white;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s, background 0.2s;
 }
 
 .enhanced-slider::-moz-range-thumb {
-    width: 70px;
-    height: 70px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: var(--primary-color);
     cursor: pointer;
-    border: 5px solid white;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-    transition: background 0.2s, transform 0.1s;
+    border: 4px solid white;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s, background 0.2s;
 }
 
-.enhanced-slider::-webkit-slider-thumb:hover,
-.enhanced-slider::-webkit-slider-thumb:active {
+.enhanced-slider::-webkit-slider-thumb:hover {
     background: var(--primary-hover);
     transform: scale(1.05);
 }
 
-.enhanced-slider::-moz-range-thumb:hover,
-.enhanced-slider::-moz-range-thumb:active {
+.enhanced-slider::-moz-range-thumb:hover {
     background: var(--primary-hover);
     transform: scale(1.05);
 }
 
-/* Track fill effect */
-.enhanced-slider::-webkit-slider-runnable-track {
-    height: 60px;
-    border-radius: 30px;
+/* Modified container for sliders to integrate better with segmentation */
+.slider-with-value {
+    background-color: #f9f9f9;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #eee;
 }
 
-.enhanced-slider::-moz-range-track {
-    height: 60px;
-    border-radius: 30px;
-}
-
-/* Container for sliders */
 .slider-container {
     position: relative;
-    padding: 15px 0;
+    padding: 5px 0 15px;
 }
 
-@media (min-width: 768px) {
-    .brightness-control-section .control-group {
-        flex-direction: row;
-        align-items: center;
+.value-display {
+    text-align: center;
+    margin: 15px 0 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--heading-color);
+}
+
+/* Speed presets styling to integrate with slider */
+.speed-presets {
+    display: flex;
+    margin-bottom: 15px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    padding: 5px;
+    overflow: hidden;
+    border: 1px solid #e5e5e5;
+}
+
+.preset-option {
+    flex: 1;
+    text-align: center;
+    padding: 12px 8px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    margin: 3px;
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+
+.preset-option:hover {
+    background-color: #e8e8e8;
+}
+
+.preset-option:has(input:checked) {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Updated styles for color inputs */
+input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 80px;
+    height: 60px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0;
+    cursor: pointer;
+    background: transparent;
+}
+
+/* For webkit browsers */
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 3px;
+}
+
+/* For Firefox */
+input[type="color"]::-moz-color-swatch {
+    border: none;
+    border-radius: 3px;
+}
+
+/* Larger swatches for specific elements */
+.large-color-swatch {
+    width: 80px !important;
+    height: 45px !important;
+}
+
+/* Gradient swatches */
+.gradient-swatch {
+    width: 90px !important;
+    height: 70px !important;
+}
+
+
+.input-with-unit {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-unit {
+    color: #666;
+}
+
+.settings-panel {
+    padding: 15px;
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.slider-with-value {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Add some styles for colored text */
+.colored-text {
+    display: inline-block;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+
+.empty-gradient-message {
+    padding: 15px;
+    text-align: center;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.small-button {
+    padding: 5px 10px;
+    margin-left: 10px;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.small-button:hover {
+    background-color: #e0e0e0;
+}
+
+.small-button.remove {
+    color: #F44336;
+}
+
+.small-button.remove:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Updated gradient header with better spacing */
+.gradient-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.gradient-header h5 {
+    margin: 0;
+}
+
+/* Better add button */
+.add-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.add-btn:hover {
+    background-color: var(--primary-hover);
+}
+
+/* Improved remove button */
+.remove-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 16px;
+    color: #F44336;
+    padding: 0;
+    line-height: 1;
+}
+
+.remove-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.remove-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Color stop styling */
+.color-stop {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+    padding: 8px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Helper text for color pickers */
+.color-picker-instruction {
+    background-color: #fffde7;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 15px;
+    border-left: 3px solid #ffc107;
+    font-size: 14px;
+}
+
+.color-picker-instruction p {
+    margin: 0;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .color-swatch {
+        width: 60px !important;
+        height: 50px !important;
     }
     
-    .brightness-control-section input[type="range"] {
+    .gradient-swatch {
+        width: 70px !important;
+        height: 60px !important;
+    }
+    
+    .color-stop {
+        flex-wrap: wrap;
+    }
+    
+    .remove-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+}
+
+/* Add these new styles to your existing CSS for bigger color inputs */
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .text-toolbar {
+        flex-direction: column;
+        padding: 15px;
+    }
+    
+    .color-tool-btn {
+        padding: 15px;
+        justify-content: space-between;
         width: 100%;
-        margin-right: 15px;
-        margin-bottom: 0;
+        margin-bottom: 5px;
     }
     
-    .brightness-control-section .value-display {
-        width: 15%;
-        margin-right: 15px;
-        margin-bottom: 0;
-        text-align: center;
+    .rich-text-editor {
+        min-height: 150px;
+        font-size: 20px;
+        padding: 15px;
     }
 }
 
-/* Add to your existing CSS */
+/* Update the rainbow button styling to match color-tool-btn height */
+.rainbow-btn {
+    background: linear-gradient(to right, 
+        #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+    border: 1px solid #777;
+    color: white;
+    text-shadow: 1px 1px 2px black;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    padding: 10px 15px; /* Match the color-tool-btn padding */
+    height: 100%; /* Ensure same height */
+    box-sizing: border-box; /* Ensure padding is included in height */
+    display: flex;
+    align-items: center; /* Vertically center content */
+}
+
+/* Ensure consistent sizing for all buttons in the toolbar */
+.text-toolbar button, 
+.text-toolbar label, 
+.text-toolbar .color-tool-btn {
+    height: 60px; /* Set a consistent height for all elements */
+    box-sizing: border-box;
+    margin: 0;
+}
+
+/* Improve mobile optimization for all buttons */
+@media (max-width: 768px) {
+    .text-toolbar button,
+    .text-toolbar label,
+    .text-toolbar .color-tool-btn,
+    .rainbow-btn {
+        height: auto; /* Allow natural height on mobile */
+        min-height: 60px; /* Ensure minimum height */
+        padding: 15px;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Add these styles to your existing CSS */
+.speed-presets {
+    display: flex;
+    margin-bottom: 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 3px;
+    overflow: hidden;
+}
+
+.preset-option {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+    margin: 3px;
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+
+.preset-option:hover {
+    background-color: #e9e9e9;
+}
+
+.preset-option input[type="radio"] {
+    display: none;
+}
+
+.preset-option input[type="radio"]:checked + .preset-option {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Make preset options display better on mobile */
+@media (max-width: 600px) {
+    .speed-presets {
+        flex-wrap: wrap;
+    }
+    
+    .preset-option {
+        min-width: calc(50% - 6px);
+    }
+}
+
+/* Modern slider style that better matches the app's design */
+.modern-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    border-radius: 4px;
+    background: #e6e6e6;
+    outline: none;
+    width: 100%;
+    margin: 15px 0;
+    transition: all 0.3s;
+    background-image: linear-gradient(to right, var(--primary-color), var(--primary-color));
+    background-size: 0% 100%;
+    background-repeat: no-repeat;
+}
+
+.modern-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    background: var(--primary-color);
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s;
+}
+
+.modern-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s;
+}
+
+.modern-slider::-webkit-slider-thumb:hover {
+    background: var(--primary-hover);
+    transform: scale(1.1);
+}
+
+.modern-slider::-moz-range-thumb:hover {
+    background: var(--primary-hover);
+    transform: scale(1.1);
+}
+
+.modern-slider:focus {
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+/* Improve the value display for the modern slider */
+.modern-slider + .value-display {
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+/* Make slider more touch-friendly on mobile without being too large */
+@media (max-width: 768px) {
+    .modern-slider {
+        height: 12px;
+    }
+    
+    .modern-slider::-webkit-slider-thumb {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .modern-slider::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+/* Text editor styles */
+.text-editor-container {
+    margin-bottom: 15px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.rich-text-editor {
+    min-height: 120px;
+    padding: 12px;
+    font-size: 18px;
+    line-height: 1.5;
+    background-color: black;
+    color: white;
+    outline: none;
+    overflow-y: auto;
+}
+
+.text-toolbar {
+    display: flex;
+    padding: 12px;
+    background-color: #333;
+    border-bottom: 1px solid #555;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.color-tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+    background-color: #444;
+    border: 1px solid #666;
+    border-radius: 4px;
+    font-weight: 600;
+    color: white;
+}
+
+/* Add these styles for colored text */
+.colored-text {
+    display: inline;
+    border-radius: 2px;
+}
+
+/* Border effects section styling */
 .border-effect-section {
     margin-top: 20px;
+    padding-top: 15px;
 }
 
 .border-effect-section h4 {
     margin-bottom: 15px;
+    font-weight: 600;
+    color: var(--heading-color);
 }
 
 .effect-options {
@@ -661,21 +1123,25 @@ button, .button-link {
 .effect-option {
     display: flex;
     align-items: center;
-    padding: 10px;
+    padding: 12px 15px;
     background-color: #f5f5f5;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
     border: 2px solid transparent;
+    min-width: 120px;
 }
 
 .effect-option:hover {
-    background-color: var(--item-hover);
+    background-color: #eaeaea;
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
 }
 
 .effect-option.selected {
     border-color: var(--primary-color);
     background-color: rgba(76, 175, 80, 0.1);
+    box-shadow: 0 3px 8px rgba(76, 175, 80, 0.2);
 }
 
 .effect-option-icon {
@@ -685,93 +1151,228 @@ button, .button-link {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 4px;
+    border-radius: 6px;
     background-color: white;
     border: 1px solid #ddd;
     font-size: 18px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
+/* Gradient colors section styling */
 .gradient-colors {
     margin-top: 15px;
-    padding: 15px;
+    padding: 20px;
     background-color: #f5f5f5;
-    border-radius: 8px;
+    border-radius: 10px;
+    border: 1px solid #e5e5e5;
     display: none;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
 }
 
 .gradient-colors.visible {
     display: block;
 }
 
-.color-stop {
+/* Responsive design for border effects section */
+@media (max-width: 768px) {
+    .effect-options {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .effect-option {
+        width: 100%;
+    }
+}
+
+/* Refined number input styling */
+.enhanced-number-input {
+    width: 100px;
+    height: 55px;
+    padding: 0 15px;
+    border: 2px solid #e8e8e8;
+    border-radius: 8px;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--heading-color);
+    background-color: white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+    text-align: center;
+    -moz-appearance: textfield; /* Remove spin buttons in Firefox */
+}
+
+/* Remove spin buttons in Chrome/Safari/Edge */
+.enhanced-number-input::-webkit-outer-spin-button,
+.enhanced-number-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.enhanced-number-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
+    outline: none;
+}
+
+.enhanced-number-input:hover {
+    border-color: #d0d0d0;
+}
+
+/* Improved input with unit container */
+.input-with-unit {
     display: flex;
     align-items: center;
-    margin-bottom: 10px;
+    gap: 12px;
+    background: linear-gradient(to bottom, #ffffff, #f8f8f8);
+    border-radius: 10px;
+    padding: 12px 20px;
+    border: 1px solid #eeeeee;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+    width: fit-content;
+    margin-top: 8px;
 }
 
-.color-stop-preview {
-    width: 30px;
-    height: 30px;
-    border-radius: 4px;
-    margin-right: 10px;
-    border: 1px solid #ddd;
-    cursor: pointer;
+.input-unit {
+    font-size: 18px;
+    font-weight: 500;
+    color: #555;
+    padding-right: 10px;
 }
 
-.add-color-stop {
-    margin-top: 10px;
-    padding: 5px 10px;
+/* Responsive styles */
+@media (max-width: 768px) {
+    .enhanced-number-input {
+        width: 120px;
+        height: 60px;
+        font-size: 22px;
+    }
+    
+    .input-with-unit {
+        width: 100%;
+        padding: 15px;
+    }
+    
+    .input-unit {
+        font-size: 18px;
+    }
+}
+
+/* Refined number input group styles */
+.number-input-container {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.number-input-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 0;
+}
+
+.number-input-group {
+    display: flex;
+    align-items: center;
     background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.add-color-stop:hover {
-    background-color: #f0f0f0;
-}
-
-/* Add to your existing CSS */
-.text-editor-container {
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     overflow: hidden;
 }
 
-.rich-text-editor {
-    min-height: 100px;
-    padding: 10px;
-    font-size: 16px;
-    line-height: 1.5;
-    background-color: white;
-    outline: none;
-    overflow-y: auto;
-}
-
-.text-toolbar {
-    display: flex;
-    padding: 8px;
-    background-color: #f5f5f5;
-    border-top: 1px solid #ddd;
-}
-
-.text-color-btn {
-    padding: 5px 10px;
-    margin-right: 10px;
-    background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.text-color-btn:hover {
+.number-btn {
+    width: 45px;
+    height: 45px;
     background-color: #f0f0f0;
+    border: none;
+    color: #555;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
 }
 
-/* Add some styles for colored text */
-.colored-text {
-    display: inline-block;
-    border-radius: 2px;
-    padding: 0 2px;
+.number-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.number-btn:active {
+    background-color: #d0d0d0;
+}
+
+.number-input-group .enhanced-number-input {
+    border: none;
+    box-shadow: none;
+    height: 45px;
+    margin: 0;
+    width: 80px;
+    border-radius: 0;
+    border-left: 1px solid #eee;
+    border-right: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.input-unit {
+    font-size: 16px;
+    font-weight: 600;
+    color: #555;
+}
+
+/* Clean up control group styling */
+#scroll-controls .control-group,
+#static-controls .control-group {
+    margin-bottom: 0;
+    padding-bottom: 10px;
+}
+
+#scroll-controls .control-group:last-child,
+#static-controls .control-group:last-child {
+    padding-bottom: 0;
+}
+
+/* Settings panel refinements */
+.settings-panel {
+    padding: 15px;
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+/* Adjust spacing for control groups inside settings panels */
+.settings-panel .control-group {
+    padding-top: 15px;
+    padding-bottom: 15px;
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.settings-panel .control-group:first-child {
+    padding-top: 5px;
+}
+
+.settings-panel .control-group:last-child {
+    padding-bottom: 5px;
+}
+
+/* Use a single separator line */
+.settings-panel .control-group + .control-group {
+    border-top: 1px solid var(--border-color);
+    margin-top: 0;
+}
+
+/* Override generic control-group styles for settings panels */
+#scroll-controls .control-group,
+#static-controls .control-group {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 15px;
 } 
