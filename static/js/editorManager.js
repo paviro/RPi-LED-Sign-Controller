@@ -25,7 +25,7 @@ document.addEventListener('alpine:init', () => {
         formData: {
             text: '',
             scroll: true,
-            speed: SPEED_PRESETS.normal, // Use preset config value as default
+            speed: SPEED_PRESETS.normal,
             repeat_count: 1,
             duration: 10,
             color: [255, 255, 255]
@@ -313,20 +313,71 @@ document.addEventListener('alpine:init', () => {
         },
         
         showStatus(message, type) {
+            console.log(`Status message: ${message} (${type})`);
+            
+            // Update Alpine data
             this.statusMessage = message;
             this.statusType = type;
             this.statusVisible = true;
             
+            // Get status element
+            const statusElement = document.getElementById('status');
+            if (statusElement) {
+                // Set the message content
+                const messageSpan = statusElement.querySelector('span');
+                if (messageSpan) {
+                    messageSpan.textContent = message;
+                }
+                
+                // Remove any inline display style that might interfere with transitions
+                statusElement.style.removeProperty('display');
+                
+                // Add the appropriate classes for the message type and visibility
+                statusElement.className = `status ${type}`; 
+                
+                // Force a reflow before adding the visible class (to ensure transition works)
+                void statusElement.offsetWidth;
+                
+                // Add visible class to trigger the fade-in
+                statusElement.classList.add('visible');
+            }
+            
+            // Set timeout to hide the message with fade-out
             setTimeout(() => {
+                // Update Alpine data
                 this.statusVisible = false;
+                
+                // Remove visible class to trigger fade-out
+                if (statusElement) {
+                    statusElement.classList.remove('visible');
+                }
             }, 5000);
         },
         
         async saveItem() {
             // Form validation
             if (!this.formData.text.trim()) {
-                this.showStatus('Please enter some text for the message', 'error');
+                this.showStatus('Please enter some text before saving', 'error');
                 document.getElementById('richTextEditor').focus();
+                return;
+            }
+            
+            // Validate that effects requiring colors have at least one color
+            if (['gradient', 'pulse', 'sparkle'].includes(this.selectedBorderEffect) && 
+                this.gradientColors.length === 0) {
+                
+                // Log for debugging
+                console.log(`Validation failed: ${this.selectedBorderEffect} effect has no colors`);
+                
+                // Only use the Alpine method - remove the custom event dispatch
+                this.showStatus(`Please add at least one color for the ${this.selectedBorderEffect} effect`, 'error');
+                
+                // Focus the add button to help the user
+                setTimeout(() => {
+                    const addColorBtn = document.querySelector('.add-btn');
+                    if (addColorBtn) addColorBtn.focus();
+                }, 100);
+                
                 return;
             }
             
@@ -341,32 +392,13 @@ document.addEventListener('alpine:init', () => {
                     borderEffect = { Rainbow: null };
                     break;
                 case 'pulse':
-                    // Use the same color management as gradient
-                    if (this.gradientColors.length > 0) {
-                        borderEffect = { Pulse: { colors: this.gradientColors } };
-                    } else {
-                        // If no colors, use an empty array which will default to text color
-                        borderEffect = { Pulse: { colors: [] } };
-                    }
+                    borderEffect = { Pulse: { colors: this.gradientColors } };
                     break;
                 case 'sparkle':
-                    // Use the same color management as gradient
-                    if (this.gradientColors.length > 0) {
-                        borderEffect = { Sparkle: { colors: this.gradientColors } };
-                    } else {
-                        // If no colors, use an empty array which will default to text color
-                        borderEffect = { Sparkle: { colors: [] } };
-                    }
+                    borderEffect = { Sparkle: { colors: this.gradientColors } };
                     break;
                 case 'gradient':
-                    // Only save gradient if there are colors
-                    if (this.gradientColors.length > 0) {
-                        borderEffect = { Gradient: { colors: this.gradientColors } };
-                    } else {
-                        // Default to None if no gradient colors are set
-                        borderEffect = { None: null };
-                        this.selectedBorderEffect = 'none';
-                    }
+                    borderEffect = { Gradient: { colors: this.gradientColors } };
                     break;
             }
             
