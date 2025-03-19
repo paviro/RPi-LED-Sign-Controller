@@ -12,7 +12,7 @@ use axum::{
 use axum_embed::ServeEmbed;
 use static_assets::StaticAssets;
 use display_manager::DisplayManager;
-use handlers::{update_text, update_playlist, get_playlist, index_handler, editor_handler, display_loop, get_brightness, update_brightness};
+use handlers::{update_playlist, get_playlist, index_handler, editor_handler, display_loop, get_brightness, update_brightness};
 #[allow(unused_imports)]
 use playlist_storage::{create_storage, SharedStorage};
 use std::{sync::Arc, net::SocketAddr};
@@ -75,7 +75,6 @@ async fn main() {
     
     // API routes with shared storage
     let api_routes = Router::new()
-        .route("/update", post(update_text))
         .route("/playlist", post(update_playlist))
         .route("/playlist", get(get_playlist))
         .route("/brightness", get(get_brightness))

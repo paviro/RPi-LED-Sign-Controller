@@ -10,7 +10,7 @@ use log::{info, error, debug};
 
 use crate::{
     display_manager::DisplayManager,
-    models::{DisplayContent, Playlist},
+    models::Playlist,
     static_assets::StaticAssets,
     playlist_storage::SharedStorage,
 };
@@ -20,48 +20,7 @@ pub struct BrightnessSettings {
     pub brightness: u8,
 }
 
-// Update content handler for backward compatibility
-pub async fn update_text(
-    State((display, storage)): State<(Arc<Mutex<DisplayManager>>, SharedStorage)>,
-    Json(mut content): Json<DisplayContent>,
-) -> StatusCode {
-    info!("Updating display with single text item: \"{}\"", content.text);
-    let mut display = display.lock().await;
-    
-    // Ensure repeat_count has a default value if not specified
-    if content.repeat_count == 0 {
-        content.repeat_count = 1;  // Default to 1 repeat
-        debug!("Setting default repeat count to 1");
-    }
-    
-    // Get the current brightness to preserve it
-    let current_brightness = display.get_brightness();
-    
-    // Create a single-item playlist with this content
-    let playlist = Playlist {
-        items: vec![content],
-        active_index: 0,
-        repeat: true,
-        brightness: current_brightness, // Preserve current brightness
-    };
-    
-    display.playlist = playlist.clone();
-    display.last_transition = Instant::now();
-    display.current_repeat = 0;
-    display.completed_scrolls = 0;
-    display.scroll_position = display.display_width;
-    
-    // Save playlist to storage
-    let storage_guard = storage.lock().unwrap();
-    if !storage_guard.save_playlist(&playlist) {
-        error!("Failed to save playlist to storage");
-    }
-    
-    info!("Display updated successfully with single text item");
-    StatusCode::OK
-}
-
-// New handler for updating the playlist
+// Handler for updating the playlist
 pub async fn update_playlist(
     State((display, storage)): State<(Arc<Mutex<DisplayManager>>, SharedStorage)>,
     Json(playlist): Json<Playlist>,
