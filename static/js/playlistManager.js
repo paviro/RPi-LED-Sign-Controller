@@ -79,6 +79,17 @@ document.addEventListener('alpine:init', () => {
             slider.style.backgroundImage = `linear-gradient(to right, var(--primary-color) 0%, var(--primary-color) ${percentage}%, #f5f5f5 ${percentage}%, #f5f5f5 100%)`;
         },
         
+        getContentTypeLabel(item) {
+            if (!item.content_type) return 'Text';
+            
+            switch (item.content_type) {
+                case 'Text':
+                    return 'Text';
+                default:
+                    return 'Text';
+            }
+        },
+        
         getItemDetails(item) {
             if (item.scroll) {
                 return `Scrolling · ${item.speed} px/s · ${item.repeat_count} repeats`;
@@ -88,7 +99,6 @@ document.addEventListener('alpine:init', () => {
         },
         
         editItem(index, event) {
-            // Only navigate if clicking the item itself, not a button
             if (event.target.closest('.item-actions') === null) {
                 window.location.href = `/editor?index=${index}`;
             }

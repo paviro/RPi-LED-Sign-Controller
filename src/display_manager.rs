@@ -1,4 +1,4 @@
-use crate::models::{DisplayContent, Playlist, BorderEffect};
+use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType};
 use embedded_graphics::{
     mono_font::{ascii::FONT_10X20, MonoTextStyle},
     text::Text,
@@ -112,6 +112,7 @@ impl DisplayManager {
             // Return a default item with the help message
             // This is just a temporary reference - it's not stored in the playlist
             static DEFAULT_ITEM: Lazy<DisplayContent> = Lazy::new(|| DisplayContent {
+                content_type: ContentType::Text,
                 text: String::from("Adjust playlist on the web"),
                 scroll: true,
                 color: (0, 255, 0),  // Green color for visibility

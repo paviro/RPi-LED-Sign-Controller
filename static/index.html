@@ -29,8 +29,13 @@
                     <!-- Playlist items -->
                     <template x-for="(item, index) in playlistItems" :key="index">
                         <div class="playlist-item" @click="editItem(index, $event)">
-                            <!-- Color indicator -->
-                            <div class="item-color" :style="`background-color: rgb(${item.color[0]},${item.color[1]},${item.color[2]})`"></div>
+                            <!-- Content Type Indicator (replacing color indicator) -->
+                            <div class="item-type">
+                                <span class="type-label" x-text="getContentTypeLabel(item)"></span>
+                            </div>
+                            
+                            <!-- Divider line -->
+                            <div class="item-divider"></div>
                             
                             <!-- Text content -->
                             <div class="item-text" x-text="item.text"></div>

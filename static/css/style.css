@@ -224,34 +224,60 @@ button, .button-link {
     margin-bottom: 10px;
     display: flex;
     align-items: center;
-    gap: 15px;
-    transition: background-color 0.2s;
+    gap: 10px;
+    transition: background-color 0.2s, transform 0.1s;
     cursor: pointer;
 }
 
 .playlist-item:hover {
     background-color: var(--item-hover);
+    transform: translateX(2px);
 }
 
 .playlist-item:last-child {
     margin-bottom: 0;
 }
 
-.item-color {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
+.item-type {
+    min-width: 60px;
+    padding: 5px 0;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 4px;
+    background-color: #e9ecef;
+    color: #495057;
+    flex-shrink: 0;
+}
+
+.type-label {
+    display: inline-block;
+    padding: 2px 8px;
+}
+
+.item-divider {
+    width: 1px;
+    height: 30px;
+    background-color: var(--border-color);
+    margin: 0 15px;
     flex-shrink: 0;
 }
 
 .item-text {
     flex-grow: 1;
     font-weight: 500;
+    margin-right: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .item-details {
-    color: #777;
+    color: #666;
     font-size: 14px;
+    min-width: 150px;
+    text-align: right;
+    padding-right: 10px;
 }
 
 .item-actions {
@@ -370,6 +396,24 @@ button, .button-link {
     .button-row button, 
     .button-row .button-link {
         width: 100%;
+    }
+    
+    .item-divider {
+        margin: 0 8px;
+    }
+    
+    .item-type {
+        min-width: 45px;
+        font-size: 12px;
+    }
+    
+    .type-label {
+        padding: 2px 5px;
+    }
+    
+    .item-details {
+        font-size: 12px;
+        min-width: 120px;
     }
 }
 
@@ -1385,4 +1429,26 @@ input[type="color"]::-moz-color-swatch {
     border-bottom: none;
     margin-bottom: 0;
     padding-bottom: 15px;
+}
+
+/* For very small screens */
+@media (max-width: 480px) {
+    .playlist-item {
+        flex-wrap: wrap;
+    }
+    
+    .item-type, .item-divider {
+        display: none;
+    }
+    
+    .item-text {
+        flex-basis: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .item-details {
+        flex-basis: 50%;
+        text-align: left;
+        padding-right: 0;
+    }
 } 

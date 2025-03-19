@@ -1,8 +1,23 @@
 use serde::{Deserialize, Serialize};
 
+// Add a ContentType enum to models.rs
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub enum ContentType {
+    Text,
+    // Future types will be added here (Image, Video, Animation, etc.)
+}
+
+// Provide default implementation
+impl Default for ContentType {
+    fn default() -> Self {
+        ContentType::Text
+    }
+}
+
 // Structure to hold display content configuration
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DisplayContent {
+    pub content_type: ContentType,  // New field for content type
     pub text: String,
     pub scroll: bool,
     pub color: (u8, u8, u8),       // Default text color
@@ -11,6 +26,23 @@ pub struct DisplayContent {
     pub repeat_count: u32,         // Number of times to repeat (0 = indefinite)
     pub border_effect: Option<BorderEffect>, // Optional border effect
     pub colored_segments: Option<Vec<ColoredSegment>>, // New field for multi-colored text
+}
+
+// Optionally update the default implementation if needed
+impl Default for DisplayContent {
+    fn default() -> Self {
+        Self {
+            content_type: ContentType::Text,
+            text: String::new(),
+            scroll: true,
+            color: (255, 255, 255),
+            speed: 50.0,
+            duration: 10,
+            repeat_count: 1,
+            border_effect: None,
+            colored_segments: None,
+        }
+    }
 }
 
 // New enum for available border effects

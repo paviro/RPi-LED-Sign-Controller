@@ -23,6 +23,7 @@ document.addEventListener('alpine:init', () => {
         textSegments: [],
         speedPreset: 'normal', // Default preset
         formData: {
+            content_type: 'Text', // Default type
             text: '',
             scroll: true,
             speed: SPEED_PRESETS.normal,
@@ -213,6 +214,7 @@ document.addEventListener('alpine:init', () => {
         // Modified function to use the speed preset configuration
         populateEditorFields(item) {
             // Set form fields
+            this.formData.content_type = item.content_type || 'Text'; // Add content type with fallback
             this.formData.text = item.text;
             this.formData.scroll = item.scroll;
             this.formData.speed = item.speed;
@@ -406,6 +408,7 @@ document.addEventListener('alpine:init', () => {
             const textSegments = this.textEditor ? this.textEditor.textSegments : this.textSegments;
             
             const item = {
+                content_type: this.formData.content_type,
                 text: this.formData.text,
                 scroll: this.formData.scroll,
                 color: this.formData.color,
