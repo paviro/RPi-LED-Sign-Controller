@@ -1,0 +1,17 @@
+[Unit]
+Description=LED Sign Controller
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/protest-sign-controller
+ExecStart=/home/pi/protest-sign-controller/target/release/protest_sign_controller
+Environment="RUST_LOG=info"
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/led-sign-controller.log
+StandardError=append:/var/log/led-sign-controller.log
+
+[Install]
+WantedBy=multi-user.target 

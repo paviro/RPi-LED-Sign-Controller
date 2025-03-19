@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Message - LED Sign Controller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alwan/dist/css/alwan.min.css" />
+</head>
+<body>
+    <header>
+        <h1>LED Sign Controller</h1>
+    </header>
+
+    <main>
+        <section id="editor-page" class="page">
+            <div class="page-header">
+                <h2 id="editor-title">Edit Message</h2>
+                <a href="/" class="back-button">← Back to Playlist</a>
+            </div>
+            
+            <div class="control-group">
+                <label for="text">Message Text:</label>
+                <div class="text-editor-container">
+                    <div id="richTextEditor" class="rich-text-editor" contenteditable="true"></div>
+                    <div class="text-toolbar">
+                        <button type="button" id="applyColorBtn" class="text-color-btn">Apply Color</button>
+                        <button type="button" id="resetColorBtn" class="text-color-btn">Reset Selection</button>
+                    </div>
+                    <input type="hidden" id="text" name="text">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="scroll" checked>
+                    <label for="scroll">Scroll Text</label>
+                </div>
+            </div>
+
+            <div class="control-group" id="scroll-controls">
+                <label for="speed">Scroll Speed:</label>
+                <div class="slider-container">
+                    <input type="range" id="speed" class="enhanced-slider" min="10" max="150" value="60" 
+                           oninput="document.getElementById('speed-value').textContent = this.value">
+                    <div class="value-display">
+                        <span id="speed-value">60</span> pixels/second
+                    </div>
+                </div>
+
+                <label for="repeats" class="mt-10">Number of Scrolls:</label>
+                <div class="input-with-help">
+                    <input type="number" id="repeats" min="1" max="100" value="1">
+                    <div class="help-text">How many times this message should scroll across the screen before showing the next message</div>
+                </div>
+            </div>
+
+            <div class="control-group" id="static-controls">
+                <label for="duration">Display Duration:</label>
+                <div class="input-with-help">
+                    <input type="number" id="duration" min="1" max="300" value="10">
+                    <div class="help-text">How long to show this message (in seconds) before showing the next message</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Text Color:</label>
+                <div class="color-picker-container">
+                    <div class="color-preview-wrapper">
+                        <div id="colorPreview" class="color-preview"></div>
+                        <div id="color-value">RGB: 255, 255, 255</div>
+                    </div>
+                    <div id="color-picker-container"></div>
+                </div>
+            </div>
+
+            <div class="control-group border-effect-section">
+                <label>Border Effect</label>
+                <div class="effect-options">
+                    <div class="effect-option selected" data-effect="none" onclick="selectBorderEffect('none')">
+                        <div class="effect-option-icon">✖</div>
+                        <span>None</span>
+                    </div>
+                    <div class="effect-option" data-effect="rainbow" onclick="selectBorderEffect('rainbow')">
+                        <div class="effect-option-icon">🌈</div>
+                        <span>Rainbow</span>
+                    </div>
+                    <div class="effect-option" data-effect="pulse" onclick="selectBorderEffect('pulse')">
+                        <div class="effect-option-icon">💓</div>
+                        <span>Pulse</span>
+                    </div>
+                    <div class="effect-option" data-effect="sparkle" onclick="selectBorderEffect('sparkle')">
+                        <div class="effect-option-icon">✨</div>
+                        <span>Sparkle</span>
+                    </div>
+                    <div class="effect-option" data-effect="gradient" onclick="selectBorderEffect('gradient')">
+                        <div class="effect-option-icon">🎨</div>
+                        <span>Gradient</span>
+                    </div>
+                </div>
+                
+                <div id="gradient-colors" class="gradient-colors">
+                    <h4>Gradient Colors</h4>
+                    <div id="gradient-color-stops"></div>
+                    <button type="button" class="add-color-stop" onclick="addGradientColorStop()">
+                        + Add Color
+                    </button>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button id="save-item-btn" class="primary-button">Save Message</button>
+                <a href="/" class="secondary-button button-link">Cancel</a>
+            </div>
+        </section>
+    </main>
+
+    <div id="status" class="status"></div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alwan/dist/js/alwan.min.js"></script>
+    <script src="/static/js/editor.js"></script>
+</body>
+</html> 

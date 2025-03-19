@@ -1,0 +1,777 @@
+:root {
+    --primary-color: #4CAF50;
+    --primary-hover: #45a049;
+    --secondary-color: #607d8b;
+    --secondary-hover: #546e7a;
+    --light-bg: #f8f9fa;
+    --border-color: #ddd;
+    --text-color: #333;
+    --heading-color: #2c3e50;
+    --item-bg: #fff;
+    --item-hover: #f5f5f5;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: var(--light-bg);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+header {
+    margin-bottom: 30px;
+}
+
+h1, h2, h3 {
+    color: var(--heading-color);
+    margin-bottom: 20px;
+}
+
+h1 {
+    text-align: center;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 25px;
+}
+
+.control-group {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.control-group:last-child {
+    border-bottom: none;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #555;
+}
+
+input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 16px;
+    transition: border 0.3s;
+}
+
+input[type="text"]:focus, input[type="number"]:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+input[type="range"] {
+    width: 100%;
+    margin: 10px 0;
+}
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-wrapper input {
+    margin-right: 10px;
+    transform: scale(1.3);
+}
+
+.checkbox-wrapper label {
+    margin-bottom: 0;
+}
+
+.color-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.color-sliders {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.slider-group {
+    display: flex;
+    align-items: center;
+}
+
+.slider-group label {
+    width: 20px;
+    margin: 0 10px 0 0;
+    font-weight: bold;
+}
+
+.color-preview {
+    width: 100%;
+    height: 50px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    margin: 10px 0;
+}
+
+.color-presets {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+}
+
+.color-preset {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
+
+.value-display {
+    text-align: center;
+    margin: 5px 0 15px;
+    font-size: 14px;
+}
+
+.button-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+button, .button-link {
+    padding: 12px 20px;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    border: none;
+    text-align: center;
+    line-height: normal;
+    text-decoration: none;
+}
+
+.primary-button {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.primary-button:hover {
+    background-color: var(--primary-hover);
+}
+
+.secondary-button {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.secondary-button:hover {
+    background-color: var(--secondary-hover);
+}
+
+.action-button {
+    background-color: #2196F3;
+    color: white;
+}
+
+.action-button:hover {
+    background-color: #0b7dda;
+}
+
+.playlist-container {
+    margin-bottom: 30px;
+}
+
+.playlist-items {
+    min-height: 100px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.playlist-item {
+    background-color: var(--item-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.playlist-item:hover {
+    background-color: var(--item-hover);
+}
+
+.playlist-item:last-child {
+    margin-bottom: 0;
+}
+
+.item-color {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.item-text {
+    flex-grow: 1;
+    font-weight: 500;
+}
+
+.item-details {
+    color: #777;
+    font-size: 14px;
+}
+
+.item-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.item-action {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.item-action:hover {
+    background-color: #e0e0e0;
+}
+
+.item-action.edit {
+    color: #2196F3;
+}
+
+.item-action.up {
+    color: #4CAF50;
+}
+
+.item-action.down {
+    color: #FFC107;
+}
+
+.item-action.delete {
+    color: #F44336;
+}
+
+.hidden {
+    display: none;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.help-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.input-with-help {
+    margin-bottom: 10px;
+}
+
+.input-with-help input {
+    margin-bottom: 2px;
+}
+
+#static-controls, #scroll-controls {
+    transition: opacity 0.3s;
+}
+
+.status {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.status.visible {
+    opacity: 1;
+}
+
+.status.success {
+    background-color: #dff0d8;
+    color: #3c763d;
+}
+
+.status.error {
+    background-color: #f2dede;
+    color: #a94442;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    section {
+        padding: 15px;
+    }
+    
+    .button-row {
+        flex-direction: column;
+    }
+    
+    .button-row button, 
+    .button-row .button-link {
+        width: 100%;
+    }
+}
+
+/* Page navigation styling */
+.page {
+    display: block;
+    width: 100%;
+}
+
+.page.hidden {
+    display: none;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.back-button {
+    background-color: transparent;
+    color: var(--heading-color);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+}
+
+.back-button:hover {
+    background-color: #f5f5f5;
+    text-decoration: none;
+}
+
+/* Animation for page transitions */
+.page-transition {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.empty-playlist-message {
+    padding: 20px;
+    text-align: center;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    color: #666;
+}
+
+.empty-playlist-message p {
+    margin: 10px 0;
+}
+
+/* Add to your existing CSS */
+.button-link {
+    display: inline-block;
+    text-decoration: none;
+    line-height: normal;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.back-button {
+    background-color: transparent;
+    color: var(--heading-color);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+}
+
+.back-button:hover {
+    background-color: #f5f5f5;
+    text-decoration: none;
+}
+
+.empty-playlist-message {
+    padding: 20px;
+    text-align: center;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    color: #666;
+}
+
+.empty-playlist-message p {
+    margin: 10px 0;
+}
+
+/* Add these styles to your existing CSS file */
+.color-picker-container {
+    margin-top: 15px;
+}
+
+.color-preview-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.color-preview {
+    width: 80px;
+    height: 40px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    margin: 0 auto 10px;
+    cursor: pointer;
+}
+
+#color-value {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+}
+
+#color-picker-container {
+    margin-top: 20px;
+}
+
+/* Alwan overrides to match your app's style */
+.alwan button {
+    padding: 6px;
+    font-size: 14px;
+}
+
+.alwan-theme-light {
+    --alwan-border-color: var(--border-color);
+}
+
+/* Add to your existing CSS */
+.global-settings {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.global-settings .control-group {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.global-settings button {
+    margin-top: 10px;
+    padding: 8px 16px;
+}
+
+/* Add to your existing CSS */
+.brightness-control-section {
+    margin-top: 20px;
+    padding: 30px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.brightness-control-section h3 {
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 1.3rem;
+    color: var(--heading-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+}
+
+.brightness-control-section .value-display {
+    margin: 15px 0;
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--heading-color);
+    text-align: center;
+}
+
+/* Make editor sliders consistent */
+#speed, #duration, #repeats {
+    height: 24px;
+}
+
+/* Enhanced sliders for better touch experience */
+.enhanced-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 60px; /* Much taller slider */
+    background: #eee;
+    border-radius: 30px;
+    outline: none;
+    transition: background 0.2s;
+    cursor: pointer;
+    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.15);
+    margin: 20px 0;
+    background: linear-gradient(to right, var(--primary-color), #f5f5f5);
+    background-size: 0% 100%;
+    background-repeat: no-repeat;
+}
+
+.enhanced-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: 5px solid white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+    transition: background 0.2s, transform 0.1s;
+    margin-top: -5px; /* To center the larger thumb */
+}
+
+.enhanced-slider::-moz-range-thumb {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: 5px solid white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+    transition: background 0.2s, transform 0.1s;
+}
+
+.enhanced-slider::-webkit-slider-thumb:hover,
+.enhanced-slider::-webkit-slider-thumb:active {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+}
+
+.enhanced-slider::-moz-range-thumb:hover,
+.enhanced-slider::-moz-range-thumb:active {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+}
+
+/* Track fill effect */
+.enhanced-slider::-webkit-slider-runnable-track {
+    height: 60px;
+    border-radius: 30px;
+}
+
+.enhanced-slider::-moz-range-track {
+    height: 60px;
+    border-radius: 30px;
+}
+
+/* Container for sliders */
+.slider-container {
+    position: relative;
+    padding: 15px 0;
+}
+
+@media (min-width: 768px) {
+    .brightness-control-section .control-group {
+        flex-direction: row;
+        align-items: center;
+    }
+    
+    .brightness-control-section input[type="range"] {
+        width: 100%;
+        margin-right: 15px;
+        margin-bottom: 0;
+    }
+    
+    .brightness-control-section .value-display {
+        width: 15%;
+        margin-right: 15px;
+        margin-bottom: 0;
+        text-align: center;
+    }
+}
+
+/* Add to your existing CSS */
+.border-effect-section {
+    margin-top: 20px;
+}
+
+.border-effect-section h4 {
+    margin-bottom: 15px;
+}
+
+.effect-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.effect-option {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border: 2px solid transparent;
+}
+
+.effect-option:hover {
+    background-color: var(--item-hover);
+}
+
+.effect-option.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.effect-option-icon {
+    width: 30px;
+    height: 30px;
+    margin-right: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    background-color: white;
+    border: 1px solid #ddd;
+    font-size: 18px;
+}
+
+.gradient-colors {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    display: none;
+}
+
+.gradient-colors.visible {
+    display: block;
+}
+
+.color-stop {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.color-stop-preview {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+}
+
+.add-color-stop {
+    margin-top: 10px;
+    padding: 5px 10px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.add-color-stop:hover {
+    background-color: #f0f0f0;
+}
+
+/* Add to your existing CSS */
+.text-editor-container {
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.rich-text-editor {
+    min-height: 100px;
+    padding: 10px;
+    font-size: 16px;
+    line-height: 1.5;
+    background-color: white;
+    outline: none;
+    overflow-y: auto;
+}
+
+.text-toolbar {
+    display: flex;
+    padding: 8px;
+    background-color: #f5f5f5;
+    border-top: 1px solid #ddd;
+}
+
+.text-color-btn {
+    padding: 5px 10px;
+    margin-right: 10px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.text-color-btn:hover {
+    background-color: #f0f0f0;
+}
+
+/* Add some styles for colored text */
+.colored-text {
+    display: inline-block;
+    border-radius: 2px;
+    padding: 0 2px;
+} 

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LED Sign Controller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>LED Sign Controller</h1>
+    </header>
+
+    <main>
+        <section id="playlist-page" class="page">
+            <h2>Message Playlist</h2>
+            
+            <div class="playlist-container">
+                <div id="playlist-items" class="playlist-items">
+                    <!-- Playlist items will be rendered here -->
+                </div>
+                
+                <div class="button-row">
+                    <a href="/editor" class="primary-button button-link">Add New Message</a>
+                </div>
+            </div>
+        </section>
+            
+        <!-- Separate section for brightness control -->
+        <section class="brightness-control-section">
+            <h3>Display Brightness</h3>
+            <div class="slider-container">
+                <input type="range" id="global-brightness" class="enhanced-slider" min="0" max="100" value="100" 
+                       oninput="document.getElementById('brightness-value').textContent = this.value + '%'; updateSliderFill();">
+                <div class="value-display">
+                    <span id="brightness-value">100%</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="status" class="status"></div>
+
+    <!-- Add utils.js before playlist.js -->
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/playlist.js"></script>
+</body>
+</html> 
