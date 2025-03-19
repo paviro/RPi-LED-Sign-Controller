@@ -285,6 +285,17 @@ document.addEventListener('alpine:init', () => {
             // Add a new color to the gradient using the current text color
             const rgb = this.hexToRgb(this.textColorHex);
             this.gradientColors.push(rgb);
+            
+            // Set a timeout to allow the DOM to update with the new color element
+            setTimeout(() => {
+                // Get all gradient swatches
+                const colorSwatches = document.querySelectorAll('#gradient-color-stops .gradient-swatch');
+                // Click the last one (which is the one we just added)
+                if (colorSwatches.length > 0) {
+                    const lastSwatch = colorSwatches[colorSwatches.length - 1];
+                    lastSwatch.click();
+                }
+            }, 50);
         },
         
         updateGradientColor(index, hexColor) {
