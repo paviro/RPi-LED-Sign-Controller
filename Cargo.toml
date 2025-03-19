@@ -1,5 +1,5 @@
 [package]
-name = "protest_sign_controller"
+name = "rpi_led_sign_controller"
 version = "0.1.0"
 edition = "2021"
 
