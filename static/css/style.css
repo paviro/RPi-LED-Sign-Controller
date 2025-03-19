@@ -217,16 +217,19 @@ button, .button-link {
 }
 
 .playlist-item {
+    position: relative;
     background-color: var(--item-bg);
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    padding: 15px;
     margin-bottom: 10px;
+    padding: 15px;
+    padding-right: 138px; /* Space for buttons */
     display: flex;
     align-items: center;
     gap: 10px;
     transition: background-color 0.2s, transform 0.1s;
     cursor: pointer;
+    overflow: hidden; /* Prevent content from bleeding out */
 }
 
 .playlist-item:hover {
@@ -265,56 +268,81 @@ button, .button-link {
 
 .item-text {
     flex-grow: 1;
+    flex-shrink: 1;
     font-weight: 500;
-    margin-right: 10px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.item-details {
-    color: #666;
-    font-size: 14px;
-    min-width: 150px;
-    text-align: right;
+    max-width: calc(100% - 280px); /* Allow space for type and details */
     padding-right: 10px;
 }
 
+.item-details {
+    min-width: 150px;
+    max-width: 300px;
+    color: #666;
+    font-size: 14px;
+    text-align: right;
+    padding-right: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+
 .item-actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
-    gap: 10px;
+    height: 100%;
 }
 
 .item-action {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 46px;
+    min-width: 46px;
+    height: 100%;
     background-color: #f5f5f5;
-    border: 1px solid #ddd;
+    border: none;
+    border-left: 1px solid #e0e0e0;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, color 0.2s;
+    border-radius: 0;
+    padding: 0;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.item-action:first-child {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.item-action:last-child {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
 }
 
 .item-action:hover {
     background-color: #e0e0e0;
 }
 
-.item-action.edit {
-    color: #2196F3;
-}
-
-.item-action.up {
+.item-action.up:hover {
+    background-color: rgba(76, 175, 80, 0.1);
     color: #4CAF50;
 }
 
-.item-action.down {
+.item-action.down:hover {
+    background-color: rgba(255, 193, 7, 0.1);
     color: #FFC107;
 }
 
-.item-action.delete {
+.item-action.delete:hover {
+    background-color: rgba(244, 67, 54, 0.1);
     color: #F44336;
 }
 
@@ -413,7 +441,10 @@ button, .button-link {
     
     .item-details {
         font-size: 12px;
-        min-width: 120px;
+    }
+    
+    .item-text {
+        max-width: calc(100% - 200px); /* Adjust for narrower details */
     }
 }
 
@@ -1434,21 +1465,71 @@ input[type="color"]::-moz-color-swatch {
 /* For very small screens */
 @media (max-width: 480px) {
     .playlist-item {
+        /* Reset flexbox to default styles */
+        display: flex;
+        flex-direction: row;
         flex-wrap: wrap;
+        padding: 15px;
+        align-items: center;
+    }
+    .type-label {
+        padding: 1px 2px;
+        font-size: 11px;
     }
     
-    .item-type, .item-divider {
+    /* Hide divider line */
+    .item-divider {
         display: none;
     }
     
+    /* Hide item details */
+    .item-details {
+        display: none;
+    }
+    
+    /* Text next to type */
     .item-text {
-        flex-basis: 100%;
-        margin-bottom: 8px;
+        flex: 1;
+        max-width: calc(100% - 50px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Bottom row: action buttons */
+    .item-actions {
+        position: static;
+        margin-top: 10px;
+        width: 100%;
+        border-top: 1px solid #eee;
+        height: 50px;
+    }
+    
+    .item-action {
+        flex: 1;
+        height: 100%;
+        border-radius: 0 !important;
+    }
+    
+    .item-action:first-child {
+        border-left: none;
+    }
+}
+
+/* Add a new media query for medium-small screens - show simplified details */
+@media (min-width: 481px) and (max-width: 680px) {
+    .playlist-item {
+        padding-right: 140px;
     }
     
     .item-details {
-        flex-basis: 50%;
-        text-align: left;
-        padding-right: 0;
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .item-text {
+        max-width: calc(100% - 80px);
     }
 } 

@@ -15,6 +15,9 @@ document.addEventListener('alpine:init', () => {
         init() {
             this.fetchAndRenderPlaylist();
             this.fetchCurrentBrightness();
+            
+            // Add window resize event to update details when screen size changes
+            window.addEventListener('resize', this.updateResponsiveElements.bind(this));
         },
         
         async fetchAndRenderPlaylist() {
@@ -91,10 +94,20 @@ document.addEventListener('alpine:init', () => {
         },
         
         getItemDetails(item) {
+            // Use actual window width directly for more reliable detection
+            const width = window.innerWidth;
+            
+            // For medium-small screens
+            if (width <= 680 && width > 480) {
+                return item.scroll ? "Scrolling" : "Static";
+            }
+            
+            // For larger screens, show full details
             if (item.scroll) {
-                return `Scrolling · ${item.speed} px/s · ${item.repeat_count} repeats`;
+                // Add non-breaking spaces to prevent awkward wrapping
+                return `Scrolling · ${item.speed}\u00A0px/s · ${item.repeat_count}\u00A0repeats`;
             } else {
-                return `Static · ${item.duration} seconds`;
+                return `Static · ${item.duration}\u00A0seconds`;
             }
         },
         
@@ -148,6 +161,12 @@ document.addEventListener('alpine:init', () => {
             } catch (error) {
                 this.showStatus('Error: ' + error.message, 'error');
             }
+        },
+        
+        // Add this new method to handle responsive updates
+        updateResponsiveElements() {
+            // Force Alpine to re-render the playlist items
+            this.playlistItems = [...this.playlistItems];
         }
     }));
 }); 
