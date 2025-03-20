@@ -55,6 +55,55 @@ check_debian_based() {
     echo -e "${GREEN}Debian-based system detected.${NC}"
 }
 
+# Add the reconfigure function here, before it's used
+ask_reconfigure() {
+    local reason=$1  # Why we're asking (update/no update)
+    local default="N"
+    
+    if [ "$reason" == "update" ]; then
+        echo -e "\n${YELLOW}Configuration Options${NC}"
+        echo -e "The application has been updated to the latest version."
+    else
+        echo -e "\n${YELLOW}The RPi LED Sign Controller is already installed and up to date.${NC}"
+    fi
+    
+    read -p "Do you want to reconfigure your LED panel settings? [y/N]: " reconfigure
+    if [[ "$reconfigure" != "y" && "$reconfigure" != "Y" ]]; then
+        if [ "$reason" == "update" ]; then
+            echo -e "${GREEN}Keeping existing configuration.${NC}"
+            echo -e "${YELLOW}Restarting service with updated binary...${NC}"
+            systemctl restart rpi-led-sign.service
+            echo -e "${GREEN}Service restarted.${NC}"
+            echo -e "${GREEN}Update complete!${NC}"
+        else
+            echo -e "${GREEN}No changes made. Your installation is up to date.${NC}"
+        fi
+        
+        # Display common completion information
+        echo -e "Web interface available at: http://$(hostname -I | awk '{print $1}'):$(systemctl show rpi-led-sign.service -p Environment | grep LED_PORT | sed 's/.*LED_PORT=\([0-9]*\).*/\1/' || echo "3000")"
+        echo -e "Source code is located at: ${BLUE}/usr/local/src/rpi-led-sign-controller${NC}"
+        echo -e "You can manage the service with: sudo systemctl [start|stop|restart|status] rpi-led-sign.service"
+        echo -e ""
+        echo -e "To update in the future, you can either:"
+        echo -e "  • Run this script again: ${BLUE}curl -sSL https://raw.githubusercontent.com/paviro/rpi-led-sign-controller/main/scripts/install.sh | sudo bash${NC}"
+        echo -e "  • Or from the source directory: ${BLUE}cd /usr/local/src/rpi-led-sign-controller && sudo bash scripts/install.sh${NC}"
+        echo -e ""
+        echo -e "To uninstall, run: ${BLUE}sudo bash /usr/local/src/rpi-led-sign-controller/scripts/uninstall.sh${NC}"
+        echo -e ""
+        echo -e "For more information, visit: ${BLUE}https://github.com/paviro/rpi-led-sign-controller${NC}"
+        return 1  # Don't reconfigure
+    fi
+    
+    echo -e "${YELLOW}Proceeding with reconfiguration...${NC}"
+    
+    # Stop the service before reconfiguration if it's running
+    if systemctl is-active --quiet rpi-led-sign.service; then
+        echo -e "${YELLOW}Stopping service before reconfiguration...${NC}"
+        systemctl stop rpi-led-sign.service
+    fi
+    return 0  # Reconfigure
+}
+
 # Call this function early in the script, right after the Raspberry Pi check
 check_debian_based
 
@@ -94,139 +143,100 @@ fi
 # Store current directory
 CURRENT_DIR=$(pwd)
 
-# Check if we're in the project directory or scripts subdirectory
-REPO_DIR="/usr/local/src/rpi-led-sign-controller"
-UPDATE_MARKER="$REPO_DIR/.update_status"
-UPDATES_AVAILABLE=0
-
-if [ -f "../Cargo.toml" ] && grep -q "rpi_led_sign_controller" "../Cargo.toml" 2>/dev/null; then
-    echo -e "${YELLOW}Running from scripts directory, moving up one level...${NC}"
-    cd ..
-    echo -e "${GREEN}Now in project directory.${NC}"
-elif [ -f "Cargo.toml" ] && grep -q "rpi_led_sign_controller" "Cargo.toml" 2>/dev/null; then
-    echo -e "${GREEN}Already in project directory.${NC}"
+# Check if the app is already installed
+APP_INSTALLED=0
+if [ -f "/usr/local/bin/rpi_led_sign_controller" ]; then
+    APP_INSTALLED=1
+    echo -e "${GREEN}RPi LED Sign Controller is already installed.${NC}"
 else
-    # Check if the repository already exists in /usr/local/src
-    if [ -d "$REPO_DIR" ]; then
-        echo -e "${YELLOW}Found existing repository at $REPO_DIR${NC}"
-        
-        # Check if binary and service exist to determine if installation is complete
-        if [ -f "/usr/local/bin/rpi_led_sign_controller" ] && [ -f "/etc/systemd/system/rpi-led-sign.service" ]; then
-            echo -e "${GREEN}Found complete previous installation.${NC}"
-            
-            # Check for updates
-            cd "$REPO_DIR"
-            echo -e "${YELLOW}Checking for updates...${NC}"
-            git fetch
-            
-            # Check if there are any updates
-            if git status -uno | grep -q "Your branch is up to date"; then
-                echo -e "${GREEN}Repository is already up to date. No new updates available.${NC}"
-                
-                # Skip rebuild prompt, just ask about reconfiguration
-                read -p "Do you want to reconfigure your LED panel settings? [y/N]: " reconfigure
-                if [[ "$reconfigure" == "y" || "$reconfigure" == "Y" ]]; then
-                    # Stop service before reconfiguration
-                    echo -e "${YELLOW}Stopping service for reconfiguration...${NC}"
-                    systemctl stop rpi-led-sign.service
-                    # Continue with configuration (we'll continue the script flow)
-                else
-                    echo -e "${GREEN}No changes needed. Exiting.${NC}"
-                    exit 0
-                fi
-            else
-                # Updates are available
-                echo -e "${GREEN}Updates are available!${NC}"
-                UPDATES_AVAILABLE=1
-                read -p "Do you want to update the installation? [Y/n]: " do_update
-                if [[ "$do_update" == "n" || "$do_update" == "N" ]]; then
-                    read -p "Do you want to reconfigure your LED panel settings? [y/N]: " reconfigure
-                    if [[ "$reconfigure" == "y" || "$reconfigure" == "Y" ]]; then
-                        # Stop service before reconfiguration
-                        echo -e "${YELLOW}Stopping service for reconfiguration...${NC}"
-                        systemctl stop rpi-led-sign.service
-                        # Continue with configuration (we'll continue the script flow)
-                    else
-                        echo -e "${GREEN}No changes made. Exiting.${NC}"
-                        exit 0
-                    fi
-                else
-                    # Save the current script hash before pulling
-                    SCRIPT_PATH="$REPO_DIR/scripts/install.sh"
-                    SCRIPT_OLD_HASH=""
-                    if [ -f "$SCRIPT_PATH" ]; then
-                        SCRIPT_OLD_HASH=$(md5sum "$SCRIPT_PATH" | awk '{print $1}')
-                    fi
+    echo -e "${YELLOW}RPi LED Sign Controller is not yet installed.${NC}"
+fi
 
-                    # Pull changes
-                    git pull
-                    echo -e "${GREEN}Repository updated successfully.${NC}"
+# Check if we're inside the repository directory
+INSIDE_REPO=0
+# Either we're directly in the repo dir
+if [ -f "Cargo.toml" ] && grep -q "rpi_led_sign_controller" "Cargo.toml" 2>/dev/null; then
+    INSIDE_REPO=1
+    REPO_DIR=$(pwd)
+    echo -e "${BLUE}Already in project directory.${NC}"
+# Or we're in the scripts subdirectory
+elif [ -f "../Cargo.toml" ] && grep -q "rpi_led_sign_controller" "../Cargo.toml" 2>/dev/null; then
+    INSIDE_REPO=1
+    REPO_DIR=$(cd .. && pwd)
+    echo -e "${BLUE}Already in project directory (scripts subfolder).${NC}"
+fi
 
-                    # Check if the script itself was updated
-                    if [ -f "$SCRIPT_PATH" ]; then
-                        SCRIPT_NEW_HASH=$(md5sum "$SCRIPT_PATH" | awk '{print $1}')
-                        if [ "$SCRIPT_OLD_HASH" != "$SCRIPT_NEW_HASH" ] && [ ! -z "$SCRIPT_OLD_HASH" ]; then
-                            echo -e "${YELLOW}The installation script itself has been updated.${NC}"
-                            echo -e "${YELLOW}Relaunching the updated script...${NC}"
-                            # Create an update marker
-                            echo "updated=$(date +%s)" > "$UPDATE_MARKER"
-                            # Return to original directory to match original state
-                            cd "$CURRENT_DIR"
-                            # Re-execute the script
-                            exec sudo bash "$SCRIPT_PATH"
-                            # The exec command replaces the current process, so the script will not continue past this point
-                        fi
-                    fi
+# Set standard repository location if not already inside repo
+if [ $INSIDE_REPO -eq 0 ]; then
+    REPO_DIR="/usr/local/src/rpi-led-sign-controller"
+fi
 
-                    # Create an update marker if we didn't relaunch
-                    echo "updated=$(date +%s)" > "$UPDATE_MARKER"
-                fi
-            fi
-        else
-            echo -e "${YELLOW}Found incomplete installation. Repository exists but installation wasn't completed.${NC}"
-            
-            # Confirm continuing installation
-            echo -e "\n${YELLOW}Ready to complete the installation of RPi LED Sign Controller.${NC}"
-            echo -e "You will need an LED matrix panel connected to your Raspberry Pi's GPIO pins."
-            read -p "Do you want to continue with the installation? [y/N]: " confirm_install
-            if [[ "$confirm_install" != "y" && "$confirm_install" != "Y" ]]; then
-                echo -e "${RED}Installation aborted.${NC}"
-                exit 1
-            fi
-            
-            echo -e "${YELLOW}Continuing with installation using existing repository...${NC}"
-            cd "$REPO_DIR"
-            
-            # Make sure the repository is up to date
-            echo -e "${YELLOW}Ensuring repository is up to date...${NC}"
-            git pull
-            # Create an update marker
-            echo "updated=$(date +%s)" > "$UPDATE_MARKER"
-        fi
-    else
-        # New installation - confirm first
-        echo -e "\n${YELLOW}Ready to install RPi LED Sign Controller.${NC}"
-        echo -e "You will need an LED matrix panel connected to your Raspberry Pi's GPIO pins."
-        echo -e "Installation requires approximately 500MB of disk space and may take 10-15 minutes"
-        echo -e "depending on your Raspberry Pi model."
-
-        read -p "Do you want to continue with the installation? [y/N]: " confirm_install
-        if [[ "$confirm_install" != "y" && "$confirm_install" != "Y" ]]; then
-            echo -e "${RED}Installation aborted.${NC}"
-            exit 1
-        fi
-        
-        echo -e "${GREEN}Starting installation...${NC}"
-        
-        echo -e "${YELLOW}Cloning repository to $REPO_DIR...${NC}"
-        mkdir -p "$REPO_DIR"
-        git clone https://github.com/paviro/rpi-led-sign-controller.git "$REPO_DIR"
-        cd "$REPO_DIR"
-        # Make sure the directory is owned by the actual user
+# Check if repo dir exists and fix ownership if needed
+if [ -d "$REPO_DIR" ]; then
+    # Check if the directory is not owned by the actual user
+    if [ "$(stat -c '%U' "$REPO_DIR")" != "$ACTUAL_USER" ]; then
+        echo -e "${YELLOW}Fixing repository directory ownership...${NC}"
         chown -R $ACTUAL_USER:$ACTUAL_USER "$REPO_DIR"
-        echo -e "${GREEN}Repository cloned successfully.${NC}"
+        echo -e "${GREEN}Repository permissions fixed.${NC}"
     fi
 fi
+
+# Determine if we need to clone or navigate to the repository
+if [ $INSIDE_REPO -eq 0 ]; then
+    # We're not in the repo directory, check if it exists at the standard location
+    if [ -d "$REPO_DIR" ]; then
+        echo -e "${BLUE}Found existing repository at $REPO_DIR${NC}"
+        cd "$REPO_DIR"
+    else
+        echo -e "${YELLOW}Creating repository directory...${NC}"
+        mkdir -p "$REPO_DIR"
+        chown $ACTUAL_USER:$ACTUAL_USER "$REPO_DIR"
+        
+        echo -e "${YELLOW}Cloning repository as user $ACTUAL_USER...${NC}"
+        # Clone the repository as the regular user
+        sudo -u $ACTUAL_USER git clone https://github.com/paviro/rpi-led-sign-controller.git "$REPO_DIR"
+        cd "$REPO_DIR"
+    fi
+fi
+
+# If app is installed, always check for updates
+if [ $APP_INSTALLED -eq 1 ]; then
+    echo -e "${YELLOW}Checking for updates...${NC}"
+    
+    # Make sure we're in the repository directory
+    CURRENT_DIR=$(pwd)
+    if [ "$CURRENT_DIR" != "$REPO_DIR" ]; then
+        cd "$REPO_DIR"
+    fi
+    
+    # Pull changes and check for updates
+    UPDATES_AVAILABLE=0
+    git_status=$(sudo -u $ACTUAL_USER git status -uno)
+    if echo "$git_status" | grep -q "Your branch is up to date"; then
+        echo -e "${GREEN}Repository is already up to date.${NC}"
+    else
+        UPDATES_AVAILABLE=1
+        echo -e "${YELLOW}Updates are available.${NC}"
+        
+        # Pull changes as the regular user
+        sudo -u $ACTUAL_USER git pull
+        echo -e "${GREEN}Repository updated successfully.${NC}"
+    fi
+    
+    # Create update marker file with proper ownership
+    if [ $UPDATES_AVAILABLE -eq 1 ]; then
+        echo "updated=$(date +%s)" > "$REPO_DIR/.update_status"
+        chown $ACTUAL_USER:$ACTUAL_USER "$REPO_DIR/.update_status"
+    fi
+    
+    # Return to original directory if we changed it
+    if [ "$CURRENT_DIR" != "$REPO_DIR" ]; then
+        cd "$CURRENT_DIR"
+    fi
+fi
+
+# Add code to ensure UPDATE_MARKER variable is defined
+UPDATE_MARKER="$REPO_DIR/.update_status"
 
 # Record the project directory
 PROJECT_DIR=$(pwd)
@@ -246,8 +256,8 @@ if [ "$UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_control
 
     # Install the binary (this requires root)
     echo -e "${YELLOW}Installing binary to /usr/local/bin...${NC}"
-    cp target/release/rpi_led_sign_controller /usr/local/bin/
-    chmod +x /usr/local/bin/rpi_led_sign_controller
+cp target/release/rpi_led_sign_controller /usr/local/bin/
+chmod +x /usr/local/bin/rpi_led_sign_controller
     echo -e "${GREEN}Binary installed.${NC}"
     
     # Remove update marker if it exists
@@ -255,35 +265,21 @@ if [ "$UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_control
         rm "$UPDATE_MARKER"
     fi
 
-    # Binary has been updated, now ask about reconfiguration
+    # For the first prompt (after binary update):
     if [ -f "/etc/systemd/system/rpi-led-sign.service" ]; then
-        echo -e "\n${YELLOW}Configuration Options${NC}"
-        read -p "Do you want to reconfigure your LED panel settings? [y/N]: " reconfigure_after_update
-        if [[ "$reconfigure_after_update" != "y" && "$reconfigure_after_update" != "Y" ]]; then
-            echo -e "${GREEN}Keeping existing configuration.${NC}"
-            echo -e "${YELLOW}Restarting service with updated binary...${NC}"
-            systemctl restart rpi-led-sign.service
-            echo -e "${GREEN}Service restarted.${NC}"
-            echo -e "${GREEN}Update complete!${NC}"
-            
-            # Display final information
-            echo -e "Web interface available at: http://$(hostname -I | awk '{print $1}'):$(systemctl show rpi-led-sign.service -p Environment | grep LED_PORT | sed 's/.*LED_PORT=\([0-9]*\).*/\1/' || echo "3000")"
-            echo -e "Source code is located at: ${BLUE}/usr/local/src/rpi-led-sign-controller${NC}"
-            echo -e "You can manage the service with: sudo systemctl [start|stop|restart|status] rpi-led-sign.service"
-            echo -e ""
-            echo -e "To update in the future, you can either:"
-            echo -e "  • Run this script again: ${BLUE}curl -sSL https://raw.githubusercontent.com/paviro/rpi-led-sign-controller/main/scripts/install.sh | sudo bash${NC}"
-            echo -e "  • Or from the source directory: ${BLUE}cd /usr/local/src/rpi-led-sign-controller && git pull && sudo bash scripts/install.sh${NC}"
-            echo -e ""
-            echo -e "To uninstall, run: ${BLUE}sudo bash /usr/local/src/rpi-led-sign-controller/scripts/uninstall.sh${NC}"
-            echo -e ""
-            echo -e "For more information, visit: ${BLUE}https://github.com/paviro/rpi-led-sign-controller${NC}"
+        if ! ask_reconfigure "update"; then
             exit 0
         fi
-        
-        echo -e "${YELLOW}Proceeding with reconfiguration...${NC}"
         # Continue with configuration
     fi
+fi
+
+# If app is installed and no updates are available, ask if user wants to reconfigure
+if [ $APP_INSTALLED -eq 1 ] && [ $UPDATES_AVAILABLE -eq 0 ]; then
+    if ! ask_reconfigure "no_update"; then
+        exit 0
+    fi
+    # Continue with configuration
 fi
 
 ###########################################
@@ -800,7 +796,7 @@ echo -e "You can manage the service with: sudo systemctl [start|stop|restart|sta
 echo -e ""
 echo -e "To update in the future, you can either:"
 echo -e "  • Run this script again: ${BLUE}curl -sSL https://raw.githubusercontent.com/paviro/rpi-led-sign-controller/main/scripts/install.sh | sudo bash${NC}"
-echo -e "  • Or from the source directory: ${BLUE}cd /usr/local/src/rpi-led-sign-controller && git pull && sudo bash scripts/install.sh${NC}"
+echo -e "  • Or from the source directory: ${BLUE}cd /usr/local/src/rpi-led-sign-controller && sudo bash scripts/install.sh${NC}"
 echo -e ""
 echo -e "To uninstall, run: ${BLUE}sudo bash /usr/local/src/rpi-led-sign-controller/scripts/uninstall.sh${NC}"
 echo -e ""
