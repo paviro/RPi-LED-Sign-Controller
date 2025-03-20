@@ -29,7 +29,7 @@ A LED matrix display controller for Raspberry Pi with web-based configuration. T
 
 ### Quick Install
 
-To quickly install or update the LED Sign Controller on your Raspberry Pi, you can use this one-liner:
+To quickly install or update the LED Sign Controller on your Raspberry Pi, you can use this installer:
 
 ```bash
 # Download the installation script
