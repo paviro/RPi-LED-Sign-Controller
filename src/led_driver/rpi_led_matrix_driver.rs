@@ -10,7 +10,7 @@ use super::options::MatrixOptions;
 
 // Canvas implementation for rpi-led-matrix
 pub struct RpiLedMatrixCanvas {
-    canvas: RpiCanvas,
+    canvas: Option<RpiCanvas>,
     width: i32,
     height: i32,
 }
@@ -30,19 +30,20 @@ unsafe impl Send for RpiLedMatrixCanvas {}
 
 impl LedCanvas for RpiLedMatrixCanvas {
     fn set_pixel(&mut self, x: usize, y: usize, r: u8, g: u8, b: u8) {
-        // The rpi-led-matrix set method takes a color struct and i32 coordinates
-        let color = LedColor { red: r, green: g, blue: b };
-        self.canvas.set(x as i32, y as i32, &color);
+        if let Some(ref mut canvas) = self.canvas {
+            let color = LedColor { red: r, green: g, blue: b };
+            canvas.set(x as i32, y as i32, &color);
+        }
     }
 
     fn fill(&mut self, r: u8, g: u8, b: u8) {
-        // Fill with a color
-        let color = LedColor { red: r, green: g, blue: b };
-        self.canvas.fill(&color);
+        if let Some(ref mut canvas) = self.canvas {
+            let color = LedColor { red: r, green: g, blue: b };
+            canvas.fill(&color);
+        }
     }
 
     fn size(&self) -> (i32, i32) {
-        // Use stored values instead of method call
         (self.width, self.height)
     }
     
@@ -51,11 +52,16 @@ impl LedCanvas for RpiLedMatrixCanvas {
     }
 }
 
-// Driver implementation for rpi-led-matrix
+// Simplest possible implementation that follows the example code EXACTLY
 pub struct RpiLedMatrixDriver {
     matrix: LedMatrix,
     width: i32,
     height: i32,
+    // This is critically important - we store canvas at module level
+    // and NEVER call offscreen_canvas() more than once
+    canvas: Option<RpiCanvas>,
+    // Track if we have given our canvas to the client
+    gave_canvas_to_client: bool,
 }
 
 // Manual Debug impl
@@ -64,6 +70,7 @@ impl Debug for RpiLedMatrixDriver {
         f.debug_struct("RpiLedMatrixDriver")
             .field("width", &self.width)
             .field("height", &self.height)
+            .field("gave_canvas_to_client", &self.gave_canvas_to_client)
             .finish()
     }
 }
@@ -72,26 +79,26 @@ impl Debug for RpiLedMatrixDriver {
 unsafe impl Send for RpiLedMatrixDriver {}
 
 impl LedDriver for RpiLedMatrixDriver {
-    fn initialize(config: &DisplayConfig) -> Result<Self, String> {
-        // Get common options
+    fn initialize(config: &DisplayConfig) -> Result<Self, String> where Self: Sized {
+        // Create options same as before
         let options = MatrixOptions::from_config(config);
-        
-        // Create binding driver specific options
         let (matrix_options, rt_options) = Self::create_matrix_options(&options)?;
         
-        debug!("Initializing rpi-led-matrix with options: {:?}", options);
-        
-        // Pass the runtime options to the initialization
         match LedMatrix::new(Some(matrix_options), Some(rt_options)) {
             Ok(matrix) => {
-                // Use options values for dimensions
                 let width = (options.cols * options.chain_length) as i32;
                 let height = (options.rows * options.parallel) as i32;
+                
+                // Get exactly ONE canvas at initialization time
+                // and NEVER create another one
+                let canvas = Some(matrix.offscreen_canvas());
                 
                 Ok(Self {
                     matrix,
                     width,
                     height,
+                    canvas,
+                    gave_canvas_to_client: false,
                 })
             },
             Err(e) => Err(format!("Failed to initialize rpi-led-matrix: {}", e)),
@@ -99,55 +106,62 @@ impl LedDriver for RpiLedMatrixDriver {
     }
 
     fn take_canvas(&mut self) -> Option<Box<dyn LedCanvas>> {
-        let canvas = self.matrix.offscreen_canvas();
-        // Use stored dimension values
-        Some(Box::new(RpiLedMatrixCanvas {
-            canvas,
-            width: self.width,
-            height: self.height,
-        }))
+        if self.gave_canvas_to_client {
+            return None;
+        }
+        
+        if let Some(canvas) = self.canvas.take() {
+            self.gave_canvas_to_client = true;
+            
+            Some(Box::new(RpiLedMatrixCanvas {
+                canvas: Some(canvas),
+                width: self.width,
+                height: self.height,
+            }))
+        } else {
+            None
+        }
     }
 
     fn update_canvas(&mut self, mut canvas: Box<dyn LedCanvas>) -> Box<dyn LedCanvas> {
-        // Get the specific canvas type
         let matrix_canvas: &mut RpiLedMatrixCanvas = canvas
             .as_any_mut()
             .downcast_mut::<RpiLedMatrixCanvas>()
             .expect("Canvas was not an RpiLedMatrixCanvas");
         
-        // Save dimensions
+        // Extract dimensions for reuse
         let width = matrix_canvas.width;
         let height = matrix_canvas.height;
         
-        // Take ownership of the canvas in a safer way
-        // We'll need to create a new RpiCanvas as a temporary placeholder
-        let old_canvas = std::mem::replace(
-            &mut matrix_canvas.canvas, 
-            // Creating a new temporary canvas - in practice this won't be used
-            self.matrix.offscreen_canvas()
-        );
+        // Take the canvas out
+        let old_canvas = matrix_canvas.canvas.take()
+            .expect("Canvas was None when it shouldn't be");
         
-        // Swap canvases and get the new one
+        // Update with swap
         let new_canvas = self.matrix.swap(old_canvas);
         
-        // Return new wrapped canvas with same dimensions
+        // Return the new canvas from swap operation
         Box::new(RpiLedMatrixCanvas {
-            canvas: new_canvas,
+            canvas: Some(new_canvas),
             width,
             height,
         })
     }
 
     fn shutdown(&mut self) {
-        // For the binding driver, clear the display
-        let mut canvas = self.matrix.offscreen_canvas();
-        let color = LedColor { red: 0, green: 0, blue: 0 }; // Black
-        canvas.fill(&color);
+        // If we have a canvas, use it to clear the display
+        if let Some(mut canvas) = self.canvas.take() {
+            let color = LedColor { red: 0, green: 0, blue: 0 };
+            canvas.fill(&color);
+            let _ = self.matrix.swap(canvas);
+        } else {
+            // Otherwise, create one final canvas just for shutdown
+            let mut canvas = self.matrix.offscreen_canvas();
+            let color = LedColor { red: 0, green: 0, blue: 0 };
+            canvas.fill(&color);
+            let _ = self.matrix.swap(canvas);
+        }
         
-        // Make sure to capture the return value even if we don't use it
-        let _new_canvas = self.matrix.swap(canvas);
-        
-        // Sleep briefly to ensure the display is updated
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
