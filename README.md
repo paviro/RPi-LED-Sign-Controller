@@ -25,7 +25,17 @@ A LED matrix display controller for Raspberry Pi with web-based configuration. T
 
 - Raspberry Pi (tested on Pi 4)
 - LED matrix panels compatible with the HUB75 interface
-- Rust toolchain (rustc, cargo)
+- Rust toolchain (rustc, cargo) (if not using quick install)
+
+### Quick Install
+
+To quickly install or update the LED Sign Controller on your Raspberry Pi, you can use this one-liner:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/paviro/rpi-led-sign-controller/main/scripts/install.sh | sudo bash
+```
+
+This will download and run the installation script, which will check for an existing installation, install/update dependencies, build the application, and help you configure your LED panel.
 
 ### Building from Source
 
