@@ -32,7 +32,7 @@ pub struct DisplayManager {
 }
 
 impl DisplayManager {
-    pub fn with_config(config: DisplayConfig) -> Self {
+    pub fn with_config(config: &DisplayConfig) -> Self {
         // Get display dimensions
         let display_width = config.display_width();
         let display_height = config.display_height();
@@ -42,7 +42,7 @@ impl DisplayManager {
               config.chain_length, config.parallel);
         
         // Initialize the driver
-        let driver = create_driver(&config)
+        let driver = create_driver(config)
             .expect("Failed to initialize LED matrix driver");
         
         // Get the canvas from the driver
@@ -65,11 +65,11 @@ impl DisplayManager {
             completed_scrolls: 0,
             border_animation_state: 0.0,
             last_animation_update: Instant::now(),
-            config,
+            config: config.clone(),
         }
     }
 
-    pub fn with_playlist_and_config(playlist: Playlist, config: DisplayConfig) -> Self {
+    pub fn with_playlist_and_config(playlist: Playlist, config: &DisplayConfig) -> Self {
         // Get dimensions
         let display_width = config.display_width();
         let display_height = config.display_height();
@@ -79,7 +79,7 @@ impl DisplayManager {
               config.chain_length, config.parallel);
         
         // Initialize the driver
-        let driver = create_driver(&config)
+        let driver = create_driver(config)
             .expect("Failed to initialize LED matrix driver");
         
         // Get the canvas from the driver
@@ -99,7 +99,7 @@ impl DisplayManager {
             completed_scrolls: 0,
             border_animation_state: 0.0,
             last_animation_update: Instant::now(),
-            config,
+            config: config.clone(),
         }
     }
 

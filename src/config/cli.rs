@@ -107,6 +107,14 @@ pub struct CliArgs {
     /// limit refresh rate in Hz (0 = no limit)
     /// Default: 0 (unlimited) [native, binding]
     pub limit_refresh_rate: u32,
+
+    #[argh(option, default = "3000")]
+    /// web server port. Default: 3000
+    pub port: u16,
+    
+    #[argh(option, default = "String::from(\"0.0.0.0\")")]
+    /// network interface to bind to. Default: "0.0.0.0" (all interfaces)
+    pub interface: String,
 }
 
 impl CliArgs {

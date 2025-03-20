@@ -32,6 +32,10 @@ pub struct DisplayConfig {
     pub show_refresh: bool,
     pub inverse_colors: bool,
     pub limit_refresh_rate: u32,
+    
+    // Web server configuration
+    pub port: u16,
+    pub interface: String,
 }
 
 impl DisplayConfig {
@@ -100,6 +104,19 @@ impl DisplayConfig {
         let show_refresh = env_vars.show_refresh.unwrap_or(cli_args.show_refresh);
         let inverse_colors = env_vars.inverse_colors.unwrap_or(cli_args.inverse_colors);
         
+        // Web server settings
+        let port = env_vars.port.unwrap_or(cli_args.port);
+        
+        let interface = env_vars.interface
+            .unwrap_or_else(|| cli_args.interface)
+            .to_lowercase();
+        
+        let interface = if interface == "localhost" {
+            "127.0.0.1".to_string()
+        } else {
+            interface
+        };
+        
         Self {
             rows,
             cols,
@@ -124,6 +141,8 @@ impl DisplayConfig {
             show_refresh,
             inverse_colors,
             limit_refresh_rate,
+            port,
+            interface,
         }
     }
     
@@ -173,6 +192,11 @@ impl DisplayConfig {
             if slowdown > 4 {
                 errors.push("GPIO slowdown must be between 0 and 4".to_string());
             }
+        }
+        
+        if let Err(e) = self.interface.parse::<std::net::IpAddr>() {
+            errors.push(format!("Invalid network interface address '{}': {}. Use a valid IP address or 'localhost'", 
+                self.interface, e));
         }
         
         if errors.is_empty() {

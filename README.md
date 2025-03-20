@@ -163,6 +163,24 @@ The `--multiplexing` parameter determines how the display is electrically multip
 
 The correct multiplexing option depends on your specific panel type. Most common panels use either `Stripe` or `Checkered`.
 
+## Web Server Configuration
+
+The application includes a web server for configuration and control of the LED matrix. You can customize where this web server binds using the following options:
+
+### Web Server Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--port` | Web server port | 3000 |
+| `--interface` | Network interface to bind to | `0.0.0.0` (all interfaces) |
+
+### Environment Variables
+
+These settings can also be configured using environment variables:
+
+- `LED_PORT` - Set the web server port
+- `LED_INTERFACE` - Set the binding interface
+
 ## CLI Usage Notes
 
 ### Options vs. Switches

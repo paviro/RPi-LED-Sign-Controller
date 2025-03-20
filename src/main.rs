@@ -97,10 +97,10 @@ async fn main() {
         
         if let Some(playlist) = persisted_playlist {
             info!("Loaded playlist from filesystem with {} items", playlist.items.len());
-            Arc::new(Mutex::new(DisplayManager::with_playlist_and_config(playlist, display_config)))
+            Arc::new(Mutex::new(DisplayManager::with_playlist_and_config(playlist, &display_config)))
         } else {
             info!("No saved playlist found, using default");
-            Arc::new(Mutex::new(DisplayManager::with_config(display_config)))
+            Arc::new(Mutex::new(DisplayManager::with_config(&display_config)))
         }
     };
     
@@ -149,13 +149,20 @@ async fn main() {
         .nest("", api_routes)
         .nest_service("/static", static_assets);
     
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let ip_addr = display_config.interface.parse::<std::net::IpAddr>()
+        .expect("Invalid network interface address");
+
+    let addr = SocketAddr::from((ip_addr, display_config.port));
+
     info!("Server running on http://{}", addr);
     
     if let Err(e) = axum::serve(
         tokio::net::TcpListener::bind(addr)
             .await
-            .unwrap(),
+            .unwrap_or_else(|e| {
+                error!("Failed to bind to address {}: {}", addr, e);
+                std::process::exit(1);
+            }),
         app,
     ).await {
         error!("Server error: {}", e);

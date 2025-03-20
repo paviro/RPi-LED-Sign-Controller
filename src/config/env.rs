@@ -25,6 +25,8 @@ pub struct EnvVars {
     pub show_refresh: Option<bool>,
     pub inverse_colors: Option<bool>,
     pub limit_refresh_rate: Option<u32>,
+    pub port: Option<u16>,
+    pub interface: Option<String>,
 }
 
 /// Load configuration from environment variables
@@ -160,6 +162,17 @@ pub fn load_env_vars() -> EnvVars {
         if let Ok(limit) = value.parse() {
             env.limit_refresh_rate = Some(limit);
         }
+    }
+    
+    // Web server settings
+    if let Ok(value) = std::env::var("LED_PORT") {
+        if let Ok(port) = value.parse() {
+            env.port = Some(port);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_INTERFACE") {
+        env.interface = Some(value);
     }
     
     env
