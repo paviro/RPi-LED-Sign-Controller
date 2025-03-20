@@ -53,30 +53,30 @@ The application supports two different LED matrix drivers:
 
 ## CLI Arguments
 
-| Argument | Description | Default | Supported By |
-|----------|-------------|---------|-------------|
-| `--driver`, `-d` | Driver type: "native" or "binding" (REQUIRED) | - | Both |
-| `--rows`, `-r` | Number of rows per panel | 32 | Both |
-| `--cols`, `-c` | Number of columns per panel | 64 | Both |
-| `--parallel`, `-p` | Number of chains to run in parallel | 1 | Both (binding: 1-3 only) |
-| `--chain-length`, `-n` | Number of daisy-chained panels | 1 | Both |
-| `--led-brightness`, `-b` | Brightness percent (0-100) | 100 | Both |
-| `--hardware-mapping` | Display wiring configuration | "regular" | Both |
-| `--limit-refresh-rate` | Limit refresh rate in Hz (0 = unlimited) | 0 | Both |
-| `--pi-chip` | Raspberry Pi chip model (e.g., "BCM2711") | auto | Native |
-| `--pwm-bits` | PWM bits for color depth (1-11) | 11 | Both |
-| `--pwm-lsb-nanoseconds` | Base time-unit for the on-time in LSB | 130 | Both |
-| `--gpio-slowdown` | GPIO slowdown factor (0-4) | auto | Both |
-| `--interlaced` | Enable interlaced scan mode | false | Both |
-| `--dither-bits` | Bits for time dithering | 0 | Both |
-| `--panel-type` | Panel initialization type (e.g., "FM6126A") | - | Both |
-| `--multiplexing` | Multiplexing type | - | Both |
-| `--pixel-mapper` | List of pixel mappers ("U-mapper;Rotate:90") | - | Both |
-| `--row-setter` | Row address setter type | "default" | Both |
-| `--led-sequence` | LED color sequence | "RGB" | Both |
-| `--no-hardware-pulse` | Disable hardware pin-pulse generation | false | Binding |
-| `--show-refresh` | Show refresh rate on terminal | false | Binding |
-| `--inverse-colors` | Invert display colors | false | Binding |
+| Argument | Type | Description | Default | Supported By |
+|----------|------|-------------|---------|-------------|
+| `--driver`, `-d` | Option | Driver type: "native" or "binding" (REQUIRED) | - | Both |
+| `--rows`, `-r` | Option | Number of rows per panel | 32 | Both |
+| `--cols`, `-c` | Option | Number of columns per panel | 64 | Both |
+| `--parallel`, `-p` | Option | Number of chains to run in parallel | 1 | Both (binding: 1-3 only) |
+| `--chain-length`, `-n` | Option | Number of daisy-chained panels | 1 | Both |
+| `--led-brightness`, `-b` | Option | Brightness percent (0-100) | 100 | Both |
+| `--hardware-mapping` | Option | Display wiring configuration | "regular" | Both |
+| `--limit-refresh-rate` | Option | Limit refresh rate in Hz (0 = unlimited) | 0 | Both |
+| `--pi-chip` | Option | Raspberry Pi chip model (e.g., "BCM2711") | auto | Native |
+| `--pwm-bits` | Option | PWM bits for color depth (1-11) | 11 | Both |
+| `--pwm-lsb-nanoseconds` | Option | Base time-unit for the on-time in LSB | 130 | Both |
+| `--gpio-slowdown` | Option | GPIO slowdown factor (0-4) | auto | Both |
+| `--dither-bits` | Option | Bits for time dithering | 0 | Both |
+| `--panel-type` | Option | Panel initialization type (e.g., "FM6126A") | - | Both |
+| `--multiplexing` | Option | Multiplexing type | - | Both |
+| `--pixel-mapper` | Option | List of pixel mappers ("U-mapper;Rotate:90") | - | Both |
+| `--row-setter` | Option | Row address setter type | "default" | Both |
+| `--led-sequence` | Option | LED color sequence | "RGB" | Both |
+| `--interlaced` | Switch | Enable interlaced scan mode | Disabled | Both |
+| `--no-hardware-pulse` | Switch | Disable hardware pin-pulse generation | Disabled | Binding |
+| `--show-refresh` | Switch | Show refresh rate on terminal | Disabled | Binding |
+| `--inverse-colors` | Switch | Invert display colors | Disabled | Binding |
 
 ## Environment Variables
 
@@ -96,7 +96,6 @@ All CLI options can be set via environment variables with the `LED_` prefix.
 | `LED_PWM_BITS` | `--pwm-bits` |
 | `LED_PWM_LSB_NANOSECONDS` | `--pwm-lsb-nanoseconds` |
 | `LED_GPIO_SLOWDOWN` | `--gpio-slowdown` |
-| `LED_INTERLACED` | `--interlaced` |
 | `LED_DITHER_BITS` | `--dither-bits` |
 | `LED_PANEL_TYPE` | `--panel-type` |
 | `LED_MULTIPLEXING` | `--multiplexing` |
@@ -140,6 +139,39 @@ The following options are available for the `--multiplexing` parameter:
 - `P8Outdoor1R1G1B` - P8 outdoor panels
 - `FlippedStripe` - Stripe pattern with flipped orientation
 - `P10Outdoor32x16HalfScan` - P10 32x16 outdoor panels with half-scan
+
+## CLI Usage Notes
+
+### Options vs. Switches
+
+This application uses two types of command-line parameters with different behaviors:
+
+#### 1. CLI Arguments
+
+- **Options** require a value: `--rows 32`, `--cols 64`
+- **Switches** are flags with no values:
+  - To enable: include the switch (e.g., `--interlaced`)
+  - To disable: omit the switch entirely
+
+#### 2. Environment Variables
+
+All parameters (including switches) accept values when set as environment variables:
+
+- For normal options: `LED_ROWS=32`, `LED_COLS=64`
+- For switches: 
+  - To enable: `LED_INTERLACED=true` or `LED_INTERLACED=1`
+  - To disable: `LED_INTERLACED=false` or `LED_INTERLACED=0`
+
+This difference in behavior between CLI switches and environment variables is due to how environment variables fundamentally work - they must always have a value, whereas CLI flags can be present or absent.
+
+### Special Case: Hardware Pulsing
+
+Note that the environment variable `LED_HARDWARE_PULSING` is inverted from its CLI counterpart `--no-hardware-pulse`:
+
+- CLI: `--no-hardware-pulse` (disables hardware pulsing)
+- ENV: `LED_HARDWARE_PULSING=false` (also disables hardware pulsing)
+
+This reversal exists because the CLI flag is a "negative" switch.
 
 ## Disclaimer
 
