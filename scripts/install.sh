@@ -51,7 +51,7 @@ if ! grep -q "Raspberry Pi" /proc/cpuinfo && ! grep -q "BCM" /proc/cpuinfo; then
     echo -e "\n${RED}Error: This script must be run on a Raspberry Pi.${NC}"
     echo -e "${YELLOW}If you are running on a Raspberry Pi and seeing this error,${NC}"
     echo -e "${YELLOW}please continue by typing 'y' or abort with any other key.${NC}"
-    read_input "Continue anyway? [y/N]: " force_continue
+    read -p "Continue anyway? [y/N]: " force_continue
     if [[ "$force_continue" != "y" && "$force_continue" != "Y" ]]; then
         echo -e "${RED}Installation aborted.${NC}"
         exit 1
@@ -380,14 +380,7 @@ get_input() {
     local default=$2
     local value
     
-    if [ -t 0 ]; then
-        # Terminal is interactive, read normally
-        read -p "${prompt} [${default}]: " value
-    else
-        # Running from pipe or non-interactive, use /dev/tty
-        read -p "${prompt} [${default}]: " value </dev/tty
-    fi
-    
+    read -p "${prompt} [${default}]: " value
     echo ${value:-$default}
 }
 
@@ -407,13 +400,7 @@ get_yes_no() {
     fi
     
     # Format prompt consistently with other inputs
-    if [ -t 0 ]; then
-        # Terminal is interactive, read normally
-        read -p "${prompt} (default: $([ $default_value -eq 1 ] && echo "yes" || echo "no")) [${default_display}]: " value
-    else
-        # Running from pipe or non-interactive, use /dev/tty
-        read -p "${prompt} (default: $([ $default_value -eq 1 ] && echo "yes" || echo "no")) [${default_display}]: " value </dev/tty
-    fi
+    read -p "${prompt} (default: $([ $default_value -eq 1 ] && echo "yes" || echo "no")) [${default_display}]: " value
     
     value=$(echo "$value" | tr '[:upper:]' '[:lower:]')
     
@@ -553,11 +540,7 @@ configure_panel() {
     echo -e "\n${BLUE}Driver Selection (REQUIRED)${NC}"
     echo "1. binding (C++ binding - recommended for most users)"
     echo "2. native (Pure Rust library - experimental)"
-    if [ -t 0 ]; then
-        read -p "Select driver type [1]: " driver_choice
-    else
-        read -p "Select driver type [1]: " driver_choice </dev/tty
-    fi
+    read -p "Select driver type [1]: " driver_choice
     if [[ $driver_choice == "2" ]]; then
         DRIVER="native"
     else
@@ -644,11 +627,7 @@ configure_panel() {
     echo "  18. FlippedStripe - Stripe pattern with flipped orientation"
     echo "  19. P10Outdoor32x16HalfScan - P10 32x16 outdoor panels with half-scan"
 
-    if [ -t 0 ]; then
-        read -p "Select multiplexing type [1]: " multiplex_choice
-    else
-        read -p "Select multiplexing type [1]: " multiplex_choice </dev/tty
-    fi
+    read -p "Select multiplexing type [1]: " multiplex_choice
     case $multiplex_choice in
         2) MULTIPLEXING="Stripe";;
         3) MULTIPLEXING="Checkered";;
