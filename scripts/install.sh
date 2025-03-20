@@ -173,9 +173,10 @@ fi
 
 # Check if repo dir exists and fix ownership if needed
 if [ -d "$REPO_DIR" ]; then
-    # Check if the directory is not owned by the actual user
-    if [ "$(stat -c '%U' "$REPO_DIR")" != "$ACTUAL_USER" ]; then
-        echo -e "${YELLOW}Fixing repository directory ownership...${NC}"
+    # Check if any files in the repo have incorrect ownership
+    if [ "$(find "$REPO_DIR" -not -user $ACTUAL_USER | wc -l)" -gt 0 ]; then
+        echo -e "${YELLOW}Fixing repository permissions...${NC}"
+        echo -e "${BLUE}This ensures your user can pull updates from GitHub${NC}"
         chown -R $ACTUAL_USER:$ACTUAL_USER "$REPO_DIR"
         echo -e "${GREEN}Repository permissions fixed.${NC}"
     fi
@@ -201,26 +202,21 @@ fi
 
 # If app is installed, always check for updates
 if [ $APP_INSTALLED -eq 1 ]; then
-    echo -e "${YELLOW}Checking for updates...${NC}"
-    
-    # Make sure we're in the repository directory
-    CURRENT_DIR=$(pwd)
-    if [ "$CURRENT_DIR" != "$REPO_DIR" ]; then
-        cd "$REPO_DIR"
-    fi
-    
-    # Pull changes and check for updates
+    echo -e "${YELLOW}Fetching the latest changes from GitHub...${NC}"
+    sudo -u $ACTUAL_USER git fetch
+
+    # Now check if we're behind the remote repository
     UPDATES_AVAILABLE=0
     git_status=$(sudo -u $ACTUAL_USER git status -uno)
-    if echo "$git_status" | grep -q "Your branch is up to date"; then
-        echo -e "${GREEN}Repository is already up to date.${NC}"
-    else
+    if echo "$git_status" | grep -q "Your branch is behind"; then
         UPDATES_AVAILABLE=1
         echo -e "${YELLOW}Updates are available.${NC}"
         
         # Pull changes as the regular user
         sudo -u $ACTUAL_USER git pull
         echo -e "${GREEN}Repository updated successfully.${NC}"
+    else
+        echo -e "${GREEN}Repository is already up to date.${NC}"
     fi
     
     # Create update marker file with proper ownership
@@ -229,9 +225,12 @@ if [ $APP_INSTALLED -eq 1 ]; then
         chown $ACTUAL_USER:$ACTUAL_USER "$REPO_DIR/.update_status"
     fi
     
-    # Return to original directory if we changed it
-    if [ "$CURRENT_DIR" != "$REPO_DIR" ]; then
-        cd "$CURRENT_DIR"
+    # Only return to original directory if we don't need to build
+    # This is critical - we need to stay in the repo dir for building
+    if [ "$UPDATES_AVAILABLE" -eq 0 ] && [ ! -f "$REPO_DIR/.update_status" ]; then
+        if [ "$CURRENT_DIR" != "$REPO_DIR" ]; then
+            cd "$CURRENT_DIR"
+        fi
     fi
 fi
 
@@ -243,6 +242,12 @@ PROJECT_DIR=$(pwd)
 
 # Build the application if new installation, update pulled, or rebuild requested
 if [ "$UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_controller" ] || [ -f "$UPDATE_MARKER" ]; then
+    # Make sure we're in the repository directory
+    if [ "$(pwd)" != "$REPO_DIR" ]; then
+        echo -e "${YELLOW}Changing to repository directory for build...${NC}"
+        cd "$REPO_DIR"
+    fi
+
     echo -e "${YELLOW}Building application...${NC}"
     # Use the user's cargo environment
     sudo -u $ACTUAL_USER bash -c "source $ACTUAL_HOME/.cargo/env && cargo build --release"
@@ -256,8 +261,8 @@ if [ "$UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_control
 
     # Install the binary (this requires root)
     echo -e "${YELLOW}Installing binary to /usr/local/bin...${NC}"
-cp target/release/rpi_led_sign_controller /usr/local/bin/
-chmod +x /usr/local/bin/rpi_led_sign_controller
+    cp target/release/rpi_led_sign_controller /usr/local/bin/
+    chmod +x /usr/local/bin/rpi_led_sign_controller
     echo -e "${GREEN}Binary installed.${NC}"
     
     # Remove update marker if it exists
@@ -265,8 +270,8 @@ chmod +x /usr/local/bin/rpi_led_sign_controller
         rm "$UPDATE_MARKER"
     fi
 
-    # For the first prompt (after binary update):
-    if [ -f "/etc/systemd/system/rpi-led-sign.service" ]; then
+    # After binary update section - around line 226
+    if [ -f "/etc/systemd/system/rpi-led-sign.service" ] && [ "$UPDATES_AVAILABLE" -eq 1 ]; then
         if ! ask_reconfigure "update"; then
             exit 0
         fi
@@ -274,8 +279,8 @@ chmod +x /usr/local/bin/rpi_led_sign_controller
     fi
 fi
 
-# If app is installed and no updates are available, ask if user wants to reconfigure
-if [ $APP_INSTALLED -eq 1 ] && [ $UPDATES_AVAILABLE -eq 0 ]; then
+# No updates available section - around line 238
+elif [ $APP_INSTALLED -eq 1 ] && [ $UPDATES_AVAILABLE -eq 0 ]; then
     if ! ask_reconfigure "no_update"; then
         exit 0
     fi
