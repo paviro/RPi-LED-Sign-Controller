@@ -2,6 +2,15 @@
 
 A LED matrix display controller for Raspberry Pi with web-based configuration. This application provides a flexible interface for controlling LED matrix panels through a web UI and supports multiple display drivers.
 
+<div style="display: flex; gap: 10px; justify-content: center; align-items: center;">
+
+  <img src="https://github.com/user-attachments/assets/565ccce9-e814-40f8-b08e-8e85194e1f89" alt="Playlist Manager" width="45%">
+  
+  <img src="https://github.com/user-attachments/assets/4979dadd-8e92-4b18-b548-a109d098f879" alt="Text Editor" width="45%">
+
+</div>
+
+
 ## Features
 
 - Control RGB LED matrix panels connected to Raspberry Pi GPIO
