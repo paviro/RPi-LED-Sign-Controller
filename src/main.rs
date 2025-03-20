@@ -23,7 +23,7 @@ use display_manager::DisplayManager;
 use handlers::{update_playlist, get_playlist, index_handler, editor_handler, display_loop, get_brightness, update_brightness};
 use std::{sync::Arc, net::SocketAddr};
 use tokio::sync::Mutex;
-use log::{info, error, debug, LevelFilter};
+use log::{info, warn, error, debug, LevelFilter};
 use env_logger::Builder;
 use chrono::Local;
 use std::io::Write;
@@ -80,8 +80,19 @@ async fn main() {
     // Set higher priority for the process if possible
     #[cfg(target_os = "linux")]
     unsafe {
+        // Set nice level to -20
         libc::nice(-20);
         debug!("Set process priority to -20");
+        
+        // Set real-time scheduling with high priority
+        let pid = libc::getpid();
+        let sched_param = libc::sched_param { sched_priority: 99 };
+        if libc::sched_setscheduler(pid, libc::SCHED_FIFO, &sched_param) != 0 {
+            let err = std::io::Error::last_os_error();
+            warn!("Failed to set real-time scheduling: {}", err);
+        } else {
+            debug!("Set real-time scheduling policy with priority 99");
+        }
     }
 
     // Initialize configuration
