@@ -26,21 +26,40 @@ use chrono::Local;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use config::init_config;
+use colored::*;
 
 // Global shutdown flag
 static SHUTDOWN_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[tokio::main]
 async fn main() {
-    // Initialize the logger with a custom format that includes timestamps
+    // Initialize the logger with a custom format that includes timestamps and colors
     Builder::new()
         .format(|buf, record| {
+            // Color based on log level
+            let level = match record.level() {
+                log::Level::Error => record.level().to_string().red().bold(),
+                log::Level::Warn => record.level().to_string().yellow().bold(),
+                log::Level::Info => record.level().to_string().green(),
+                log::Level::Debug => record.level().to_string().blue(),
+                log::Level::Trace => record.level().to_string().white(),
+            };
+
+            // Apply appropriate colors to the message based on level
+            let message = match record.level() {
+                log::Level::Error => record.args().to_string().red(),
+                log::Level::Warn => record.args().to_string().yellow(),
+                log::Level::Info => record.args().to_string().green(),
+                log::Level::Debug => record.args().to_string().normal(),
+                log::Level::Trace => record.args().to_string().normal(),
+            };
+
             writeln!(
                 buf,
                 "{} [{}] - {}",
-                Local::now().format("%Y-%m-%d %H:%M:%S"),
-                record.level(),
-                record.args()
+                Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+                level,
+                message
             )
         })
         .filter(None, LevelFilter::Info) // Set default log level to Info
@@ -66,7 +85,7 @@ async fn main() {
     // Validate configuration
     if let Err(errors) = display_config.validate() {
         for error in errors {
-            error!("Configuration error: {}", error);
+            error!("{}", error);
         }
         std::process::exit(1);
     }

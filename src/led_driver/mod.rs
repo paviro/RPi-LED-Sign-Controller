@@ -37,11 +37,17 @@ pub fn create_driver(config: &DisplayConfig) -> Result<Box<dyn LedDriver>, Strin
     match config.driver_type {
         DriverType::RpiLedPanel => {
             log::debug!("Creating rpi-led-panel driver");
-            Ok(Box::new(RpiLedPanelDriver::initialize(config)?))
+            match RpiLedPanelDriver::initialize(config) {
+                Ok(driver) => Ok(Box::new(driver)),
+                Err(e) => Err(e)
+            }
         },
         DriverType::RpiLedMatrix => {
             log::debug!("Creating rpi-led-matrix driver");
-            Ok(Box::new(RpiLedMatrixDriver::initialize(config)?))
+            match RpiLedMatrixDriver::initialize(config) {
+                Ok(driver) => Ok(Box::new(driver)),
+                Err(e) => Err(e)
+            }
         },
     }
 } 
