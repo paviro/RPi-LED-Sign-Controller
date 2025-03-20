@@ -61,29 +61,31 @@ ask_reconfigure() {
     local default="N"
     
     if [ "$reason" == "update" ]; then
-        echo -e "\n${YELLOW}Configuration Options${NC}"
-        echo -e "The application has been updated to the latest version."
+        echo -e "\n${GREEN}✓ Update successful!${NC}"
+        echo -e "${YELLOW}Would you like to modify your LED panel configuration?${NC}"
     else
-        echo -e "\n${YELLOW}The RPi LED Sign Controller is already installed and up to date.${NC}"
+        echo -e "\n${GREEN}✓ The RPi LED Sign Controller is already installed and up to date.${NC}"
+        echo -e "${YELLOW}Would you like to modify your LED panel configuration?${NC}"
     fi
     
-    read -p "Do you want to reconfigure your LED panel settings? [y/N]: " reconfigure
+    read -p "Reconfigure LED panel settings? [y/N]: " reconfigure
     if [[ "$reconfigure" != "y" && "$reconfigure" != "Y" ]]; then
         if [ "$reason" == "update" ]; then
             echo -e "${GREEN}Keeping existing configuration.${NC}"
             echo -e "${YELLOW}Restarting service with updated binary...${NC}"
             systemctl restart rpi-led-sign.service
-            echo -e "${GREEN}Service restarted.${NC}"
-            echo -e "${GREEN}Update complete!${NC}"
+            echo -e "${GREEN}Service restarted successfully.${NC}"
         else
-            echo -e "${GREEN}No changes made. Your installation is up to date.${NC}"
+            echo -e "${GREEN}No changes needed. Your installation will continue to use the existing settings.${NC}"
         fi
         
         # Display common completion information
+        echo -e "\n${GREEN}===== RPi LED Sign Controller Information =====${NC}"
         echo -e "Web interface available at: http://$(hostname -I | awk '{print $1}'):$(systemctl show rpi-led-sign.service -p Environment | grep LED_PORT | sed 's/.*LED_PORT=\([0-9]*\).*/\1/' || echo "3000")"
         echo -e "Source code is located at: ${BLUE}/usr/local/src/rpi-led-sign-controller${NC}"
         echo -e "You can manage the service with: sudo systemctl [start|stop|restart|status] rpi-led-sign.service"
         echo -e ""
+        echo -e "${BLUE}===== Update & Maintenance =====${NC}"
         echo -e "To update in the future, you can either:"
         echo -e "  • Run this script again: ${BLUE}curl -sSL https://raw.githubusercontent.com/paviro/rpi-led-sign-controller/main/scripts/install.sh | sudo bash${NC}"
         echo -e "  • Or from the source directory: ${BLUE}cd /usr/local/src/rpi-led-sign-controller && sudo bash scripts/install.sh${NC}"
