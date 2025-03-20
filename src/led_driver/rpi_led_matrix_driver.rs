@@ -236,8 +236,8 @@ impl RpiLedMatrixDriver {
         matrix_options.set_inverse_colors(options.inverse_colors);
         
         // Apply refresh rate limiting
-        if options.limit_refresh > 0 {
-            matrix_options.set_limit_refresh(options.limit_refresh);
+        if options.limit_refresh_rate > 0 {
+            matrix_options.set_limit_refresh(options.limit_refresh_rate);
         }
         
         // Runtime options: set reasonable defaults

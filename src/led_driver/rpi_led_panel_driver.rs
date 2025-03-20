@@ -157,7 +157,13 @@ impl RpiLedPanelDriver {
         config.chain_length = options.chain_length;
         config.parallel = options.parallel;
         config.led_brightness = options.brightness;
-        config.refresh_rate = 120; // Set a default refresh rate that's reasonable
+        
+        // With this (conditionally set refresh rate)
+        if options.limit_refresh_rate > 0 {
+            config.refresh_rate = options.limit_refresh_rate as usize;
+        } else {
+            config.refresh_rate = 0;
+        }
         
         // Set additional options
         config.pwm_bits = options.pwm_bits as usize;
@@ -256,10 +262,6 @@ impl RpiLedPanelDriver {
 
         if options.inverse_colors {
             unsupported_options.push("inverse-colors".to_string());
-        }
-
-        if options.limit_refresh > 0 {
-            unsupported_options.push(format!("limit-refresh={}", options.limit_refresh));
         }
         
         // Check if we encountered any unsupported options

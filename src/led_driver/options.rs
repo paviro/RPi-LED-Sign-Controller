@@ -27,7 +27,7 @@ pub struct MatrixOptions {
     pub hardware_pulsing: bool,
     pub show_refresh: bool,
     pub inverse_colors: bool,
-    pub limit_refresh: u32,
+    pub limit_refresh_rate: u32,
     pub pi_chip: Option<String>,
 }
 
@@ -53,7 +53,7 @@ impl Default for MatrixOptions {
             hardware_pulsing: true,
             show_refresh: false,
             inverse_colors: false,
-            limit_refresh: 0,
+            limit_refresh_rate: 0,
             pi_chip: None,
         }
     }
@@ -83,7 +83,7 @@ impl MatrixOptions {
             hardware_pulsing: config.hardware_pulsing,
             show_refresh: config.show_refresh,
             inverse_colors: config.inverse_colors,
-            limit_refresh: config.limit_refresh,
+            limit_refresh_rate: config.limit_refresh_rate,
             pi_chip: config.pi_chip.clone(),
         };
         
@@ -215,9 +215,9 @@ impl MatrixOptions {
             }
         }
         
-        if let Ok(value) = std::env::var("LED_LIMIT_REFRESH") {
+        if let Ok(value) = std::env::var("LED_LIMIT_REFRESH_RATE") {
             if let Ok(limit) = value.parse() {
-                options.limit_refresh = limit;
+                options.limit_refresh_rate = limit;
             }
         }
     }

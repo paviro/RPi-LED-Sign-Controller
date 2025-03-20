@@ -15,7 +15,6 @@ pub struct EnvVars {
     pub pwm_lsb_nanoseconds: Option<u32>,
     pub pixel_mapper: Option<String>,
     pub multiplexing: Option<String>,
-    pub refresh_rate: Option<usize>,
     pub pi_chip: Option<String>,
     pub interlaced: Option<bool>,
     pub dither_bits: Option<usize>,
@@ -25,7 +24,7 @@ pub struct EnvVars {
     pub hardware_pulsing: Option<bool>,
     pub show_refresh: Option<bool>,
     pub inverse_colors: Option<bool>,
-    pub limit_refresh: Option<u32>,
+    pub limit_refresh_rate: Option<u32>,
 }
 
 /// Load configuration from environment variables
@@ -101,13 +100,6 @@ pub fn load_env_vars() -> EnvVars {
         env.multiplexing = Some(value);
     }
     
-    // New environment variables
-    if let Ok(value) = std::env::var("LED_REFRESH_RATE") {
-        if let Ok(rate) = value.parse() {
-            env.refresh_rate = Some(rate);
-        }
-    }
-    
     if let Ok(value) = std::env::var("LED_PI_CHIP") {
         env.pi_chip = Some(value);
     }
@@ -164,9 +156,9 @@ pub fn load_env_vars() -> EnvVars {
         }
     }
     
-    if let Ok(value) = std::env::var("LED_LIMIT_REFRESH") {
+    if let Ok(value) = std::env::var("LED_LIMIT_REFRESH_RATE") {
         if let Ok(limit) = value.parse() {
-            env.limit_refresh = Some(limit);
+            env.limit_refresh_rate = Some(limit);
         }
     }
     

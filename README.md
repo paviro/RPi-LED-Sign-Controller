@@ -62,7 +62,7 @@ The application supports two different LED matrix drivers:
 | `--chain-length`, `-n` | Number of daisy-chained panels | 1 | Both |
 | `--led-brightness`, `-b` | Brightness percent (0-100) | 100 | Both |
 | `--hardware-mapping` | Display wiring configuration | "regular" | Both |
-| `--refresh-rate` | Display refresh rate | 120 | Native |
+| `--limit-refresh-rate` | Limit refresh rate in Hz (0 = unlimited) | 0 | Both |
 | `--pi-chip` | Raspberry Pi chip model (e.g., "BCM2711") | auto | Native |
 | `--pwm-bits` | PWM bits for color depth (1-11) | 11 | Both |
 | `--pwm-lsb-nanoseconds` | Base time-unit for the on-time in LSB | 130 | Both |
@@ -77,7 +77,6 @@ The application supports two different LED matrix drivers:
 | `--no-hardware-pulse` | Disable hardware pin-pulse generation | false | Binding |
 | `--show-refresh` | Show refresh rate on terminal | false | Binding |
 | `--inverse-colors` | Invert display colors | false | Binding |
-| `--limit-refresh` | Limit refresh rate in Hz (0=unlimited) | 0 | Binding |
 
 ## Environment Variables
 
@@ -92,7 +91,7 @@ All CLI options can be set via environment variables with the `LED_` prefix.
 | `LED_PARALLEL` | `--parallel` |
 | `LED_BRIGHTNESS` | `--led-brightness` |
 | `LED_HARDWARE_MAPPING` | `--hardware-mapping` |
-| `LED_REFRESH_RATE` | `--refresh-rate` |
+| `LED_LIMIT_REFRESH_RATE` | `--limit-refresh-rate` |
 | `LED_PI_CHIP` | `--pi-chip` |
 | `LED_PWM_BITS` | `--pwm-bits` |
 | `LED_PWM_LSB_NANOSECONDS` | `--pwm-lsb-nanoseconds` |
@@ -107,7 +106,6 @@ All CLI options can be set via environment variables with the `LED_` prefix.
 | `LED_HARDWARE_PULSING` | `--no-hardware-pulse` (inverted) |
 | `LED_SHOW_REFRESH` | `--show-refresh` |
 | `LED_INVERSE_COLORS` | `--inverse-colors` |
-| `LED_LIMIT_REFRESH` | `--limit-refresh` |
 
 ## Hardware Mapping Options
 

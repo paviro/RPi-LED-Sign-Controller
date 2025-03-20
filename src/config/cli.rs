@@ -41,10 +41,6 @@ pub struct CliArgs {
     /// Default: "regular" [native, binding]
     pub hardware_mapping: Option<String>,
     
-    #[argh(option, default = "120")]
-    /// the display refresh rate. Default: 120 [native]
-    pub refresh_rate: usize,
-    
     #[argh(option)]
     /// the Raspberry Pi chip model e.g. "BCM2711".
     /// Default: automatic [native]
@@ -105,8 +101,9 @@ pub struct CliArgs {
     pub inverse_colors: bool,
 
     #[argh(option, default = "0")]
-    /// limit refresh rate to this frequency in Hz (0 = no limit). Default: 0 [binding]
-    pub limit_refresh: u32,
+    /// limit refresh rate in Hz (0 = no limit)
+    /// Default: 0 (unlimited) [native, binding]
+    pub limit_refresh_rate: u32,
 }
 
 impl CliArgs {

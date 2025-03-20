@@ -16,8 +16,6 @@ pub struct DisplayConfig {
     
     // Additional options
     pub hardware_mapping: String,
-    #[allow(dead_code)]
-    pub refresh_rate: usize,
     pub pwm_bits: u8,
     pub pwm_lsb_nanoseconds: u32,
     pub gpio_slowdown: Option<u32>,
@@ -33,7 +31,7 @@ pub struct DisplayConfig {
     pub hardware_pulsing: bool,
     pub show_refresh: bool,
     pub inverse_colors: bool,
-    pub limit_refresh: u32,
+    pub limit_refresh_rate: u32,
 }
 
 impl DisplayConfig {
@@ -90,7 +88,7 @@ impl DisplayConfig {
         let pixel_mapper = env_vars.pixel_mapper.or(cli_args.pixel_mapper);
         
         // Other settings from environment variables
-        let refresh_rate = env_vars.refresh_rate.unwrap_or(cli_args.refresh_rate);
+        let limit_refresh_rate = env_vars.limit_refresh_rate.unwrap_or(cli_args.limit_refresh_rate);
         let interlaced = env_vars.interlaced.unwrap_or(cli_args.interlaced);
         let dither_bits = env_vars.dither_bits.unwrap_or(cli_args.dither_bits);
         let panel_type = env_vars.panel_type.or(cli_args.panel_type);
@@ -101,7 +99,6 @@ impl DisplayConfig {
         let hardware_pulsing = env_vars.hardware_pulsing.unwrap_or(!cli_args.no_hardware_pulse);
         let show_refresh = env_vars.show_refresh.unwrap_or(cli_args.show_refresh);
         let inverse_colors = env_vars.inverse_colors.unwrap_or(cli_args.inverse_colors);
-        let limit_refresh = env_vars.limit_refresh.unwrap_or(cli_args.limit_refresh);
         
         Self {
             rows,
@@ -112,7 +109,6 @@ impl DisplayConfig {
             driver_type,
             
             hardware_mapping,
-            refresh_rate,
             pwm_bits,
             pwm_lsb_nanoseconds,
             gpio_slowdown,
@@ -127,7 +123,7 @@ impl DisplayConfig {
             hardware_pulsing,
             show_refresh,
             inverse_colors,
-            limit_refresh,
+            limit_refresh_rate,
         }
     }
     
