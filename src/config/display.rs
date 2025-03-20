@@ -32,6 +32,7 @@ pub struct DisplayConfig {
     pub show_refresh: bool,
     pub inverse_colors: bool,
     pub limit_refresh_rate: u32,
+    pub limit_max_brightness: u8,
     
     // Web server configuration
     pub port: u16,
@@ -70,7 +71,12 @@ impl DisplayConfig {
         let cols = env_vars.cols.unwrap_or(cli_args.cols);
         let chain_length = env_vars.chain_length.unwrap_or(cli_args.chain_length);
         let parallel = env_vars.parallel.unwrap_or(cli_args.parallel);
-        let led_brightness = env_vars.led_brightness.unwrap_or(cli_args.led_brightness).clamp(0, 100);
+        
+        let limit_max_brightness = env_vars.limit_max_brightness
+            .unwrap_or(cli_args.limit_max_brightness)
+            .clamp(0, 100);
+
+        let led_brightness = limit_max_brightness;
         
         // Hardware settings
         let hardware_mapping = env_vars.hardware_mapping
@@ -141,6 +147,7 @@ impl DisplayConfig {
             show_refresh,
             inverse_colors,
             limit_refresh_rate,
+            limit_max_brightness,
             port,
             interface,
         }
@@ -197,6 +204,10 @@ impl DisplayConfig {
         if let Err(e) = self.interface.parse::<std::net::IpAddr>() {
             errors.push(format!("Invalid network interface address '{}': {}. Use a valid IP address or 'localhost'", 
                 self.interface, e));
+        }
+        
+        if self.limit_max_brightness > 100 {
+            errors.push("Maximum brightness limit must be between 0 and 100".to_string());
         }
         
         if errors.is_empty() {

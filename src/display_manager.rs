@@ -519,15 +519,19 @@ impl DisplayManager {
         let brightness = brightness.clamp(0, 100);
         info!("Reinitializing display with brightness: {}", brightness);
         
+        // Calculate scaled brightness based on limit
+        let scaled_brightness = (brightness as f32 * self.config.limit_max_brightness as f32 / 100.0) as u8;
+        info!("Scaled brightness: {} (limit: {}%)", scaled_brightness, self.config.limit_max_brightness);
+        
         // Update our config
         let mut display_config = self.config.clone();
-        display_config.led_brightness = brightness;
+        display_config.led_brightness = scaled_brightness;
         
         // Create matrix config and log details
         info!("Reinitializing display: {}x{} (rows={}, cols={}, chain={}, parallel={}, brightness={})",
               display_config.display_width(), display_config.display_height(),
               display_config.rows, display_config.cols, 
-              display_config.chain_length, display_config.parallel, brightness);
+              display_config.chain_length, display_config.parallel, scaled_brightness);
         
         // Initialize the driver
         match create_driver(&display_config) {
@@ -548,7 +552,7 @@ impl DisplayManager {
                 self.scroll_position = self.display_width;
                 
                 // Update global brightness in the playlist
-                self.playlist.brightness = brightness;
+                self.playlist.brightness = scaled_brightness;
             },
             Err(e) => {
                 error!("Failed to reinitialize driver: {}", e);

@@ -8,7 +8,6 @@ pub struct EnvVars {
     pub cols: Option<usize>,
     pub chain_length: Option<usize>,
     pub parallel: Option<usize>,
-    pub led_brightness: Option<u8>,
     pub hardware_mapping: Option<String>,
     pub gpio_slowdown: Option<u32>,
     pub pwm_bits: Option<u8>,
@@ -27,6 +26,7 @@ pub struct EnvVars {
     pub limit_refresh_rate: Option<u32>,
     pub port: Option<u16>,
     pub interface: Option<String>,
+    pub limit_max_brightness: Option<u8>,
 }
 
 /// Load configuration from environment variables
@@ -60,12 +60,6 @@ pub fn load_env_vars() -> EnvVars {
     if let Ok(value) = std::env::var("LED_PARALLEL") {
         if let Ok(parallel) = value.parse() {
             env.parallel = Some(parallel);
-        }
-    }
-    
-    if let Ok(value) = std::env::var("LED_BRIGHTNESS") {
-        if let Ok(brightness) = value.parse::<u8>() {
-            env.led_brightness = Some(brightness.clamp(0, 100));
         }
     }
     
@@ -173,6 +167,12 @@ pub fn load_env_vars() -> EnvVars {
     
     if let Ok(value) = std::env::var("LED_INTERFACE") {
         env.interface = Some(value);
+    }
+    
+    if let Ok(value) = std::env::var("LED_LIMIT_MAX_BRIGHTNESS") {
+        if let Ok(brightness_limit) = value.parse::<u8>() {
+            env.limit_max_brightness = Some(brightness_limit.clamp(0, 100));
+        }
     }
     
     env

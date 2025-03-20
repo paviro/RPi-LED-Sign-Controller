@@ -32,10 +32,6 @@ pub struct CliArgs {
     /// number of daisy-chained panels. Default: 1 [native, binding]
     pub chain_length: usize,
 
-    #[argh(option, short = 'b', default = "100")]
-    /// brightness in percent (0-100). Default: 100 [native, binding]
-    pub led_brightness: u8,
-    
     #[argh(option)]
     /// the display wiring e.g. "regular", "adafruit-hat", or "adafruit-hat-pwm".
     /// Default: "regular" [native, binding]
@@ -115,6 +111,11 @@ pub struct CliArgs {
     #[argh(option, default = "String::from(\"0.0.0.0\")")]
     /// network interface to bind to. Default: "0.0.0.0" (all interfaces)
     pub interface: String,
+
+    #[argh(option, default = "100")]
+    /// maximum brightness limit (0-100). The UI's 100% setting will equal this value.
+    /// Default: 100 (no scaling)
+    pub limit_max_brightness: u8,
 }
 
 impl CliArgs {

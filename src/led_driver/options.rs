@@ -120,12 +120,6 @@ impl MatrixOptions {
             }
         }
         
-        if let Ok(value) = std::env::var("LED_BRIGHTNESS") {
-            if let Ok(brightness) = value.parse::<u8>() {
-                options.brightness = brightness.clamp(0, 100);
-            }
-        }
-        
         // Hardware configuration
         if let Ok(mapping) = std::env::var("LED_HARDWARE_MAPPING") {
             options.hardware_mapping = mapping;

@@ -58,9 +58,9 @@ The application supports two different LED matrix drivers:
 | `--driver`, `-d` | Option | Driver type: "native" or "binding" (REQUIRED) | - | Both |
 | `--rows`, `-r` | Option | Number of rows per panel | 32 | Both |
 | `--cols`, `-c` | Option | Number of columns per panel | 64 | Both |
-| `--parallel`, `-p` | Option | Number of chains to run in parallel (1-3 only) | 1 | Both |
+| `--parallel`, `-p` | Option | Number of chains to run in parallel | 1 | Both |
 | `--chain-length`, `-n` | Option | Number of daisy-chained panels | 1 | Both |
-| `--led-brightness`, `-b` | Option | Brightness percent (0-100) | 100 | Both |
+| `--limit-max-brightness` | Option | Maximum brightness limit (0-100). The UI's 100% setting will equal this value | 100 | Both |
 | `--hardware-mapping` | Option | Display wiring configuration | "regular" | Both |
 | `--limit-refresh-rate` | Option | Limit refresh rate in Hz (0 = unlimited) | 0 | Both |
 | `--pi-chip` | Option | Raspberry Pi chip model (e.g., "BCM2711") | auto | Native |
@@ -90,7 +90,7 @@ All CLI options can be set via environment variables with the `LED_` prefix.
 | `LED_COLS` | `--cols` |
 | `LED_CHAIN_LENGTH` | `--chain-length` |
 | `LED_PARALLEL` | `--parallel` |
-| `LED_BRIGHTNESS` | `--led-brightness` |
+| `LED_LIMIT_MAX_BRIGHTNESS` | `--limit-max-brightness` |
 | `LED_HARDWARE_MAPPING` | `--hardware-mapping` |
 | `LED_LIMIT_REFRESH_RATE` | `--limit-refresh-rate` |
 | `LED_PI_CHIP` | `--pi-chip` |
