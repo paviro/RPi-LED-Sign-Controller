@@ -28,12 +28,30 @@ echo -e "  • Help you configure your LED panel"
 echo -e "  • Install the application as a systemd service"
 echo -e "  • Start the service automatically on boot"
 
-# Check if we're running on a Raspberry Pi
+# First, add a helper function for standardized reading near the top of the script
+read_input() {
+    local prompt="$1"
+    local var_name="$2"
+    local result
+    
+    if [ -t 0 ]; then
+        # Terminal is interactive, read normally
+        read -p "$prompt" result
+    else
+        # Running from pipe or non-interactive, use /dev/tty
+        read -p "$prompt" result </dev/tty
+    fi
+    
+    # Use eval to set the variable by name in the parent scope
+    eval "$var_name=\"\$result\""
+}
+
+# Then update the Raspberry Pi detection override
 if ! grep -q "Raspberry Pi" /proc/cpuinfo && ! grep -q "BCM" /proc/cpuinfo; then
     echo -e "\n${RED}Error: This script must be run on a Raspberry Pi.${NC}"
     echo -e "${YELLOW}If you are running on a Raspberry Pi and seeing this error,${NC}"
     echo -e "${YELLOW}please continue by typing 'y' or abort with any other key.${NC}"
-    read -p "Continue anyway? [y/N]: " force_continue
+    read_input "Continue anyway? [y/N]: " force_continue
     if [[ "$force_continue" != "y" && "$force_continue" != "Y" ]]; then
         echo -e "${RED}Installation aborted.${NC}"
         exit 1
@@ -68,7 +86,14 @@ ask_reconfigure() {
         echo -e "${YELLOW}Would you like to modify your LED panel configuration?${NC}"
     fi
     
-    read -p "Reconfigure LED panel settings? [y/N]: " reconfigure
+    if [ -t 0 ]; then
+        # Terminal is interactive, read normally
+        read -p "Reconfigure LED panel settings? [y/N]: " reconfigure
+    else
+        # Running from pipe or non-interactive, use /dev/tty
+        read -p "Reconfigure LED panel settings? [y/N]: " reconfigure </dev/tty
+    fi
+    
     if [[ "$reconfigure" != "y" && "$reconfigure" != "Y" ]]; then
         if [ "$reason" == "update" ]; then
             echo -e "${GREEN}Keeping existing configuration.${NC}"
@@ -349,17 +374,24 @@ PI_CHIP=$DEFAULT_PI_CHIP
 WEB_PORT=$DEFAULT_WEB_PORT
 WEB_INTERFACE=$DEFAULT_WEB_INTERFACE
 
-# Function to get user input with a default value
+# Update the get_input function
 get_input() {
     local prompt=$1
     local default=$2
     local value
     
-    read -p "${prompt} [${default}]: " value
+    if [ -t 0 ]; then
+        # Terminal is interactive, read normally
+        read -p "${prompt} [${default}]: " value
+    else
+        # Running from pipe or non-interactive, use /dev/tty
+        read -p "${prompt} [${default}]: " value </dev/tty
+    fi
+    
     echo ${value:-$default}
 }
 
-# Function to get yes/no input with clearer defaults
+# Update the get_yes_no function
 get_yes_no() {
     local prompt=$1
     local default=$2
@@ -375,7 +407,14 @@ get_yes_no() {
     fi
     
     # Format prompt consistently with other inputs
-    read -p "${prompt} (default: $([ $default_value -eq 1 ] && echo "yes" || echo "no")) [${default_display}]: " value
+    if [ -t 0 ]; then
+        # Terminal is interactive, read normally
+        read -p "${prompt} (default: $([ $default_value -eq 1 ] && echo "yes" || echo "no")) [${default_display}]: " value
+    else
+        # Running from pipe or non-interactive, use /dev/tty
+        read -p "${prompt} (default: $([ $default_value -eq 1 ] && echo "yes" || echo "no")) [${default_display}]: " value </dev/tty
+    fi
+    
     value=$(echo "$value" | tr '[:upper:]' '[:lower:]')
     
     if [[ -z "$value" ]]; then
@@ -494,9 +533,13 @@ test_configuration() {
     echo -e "${YELLOW}Running: $CMD${NC}"
     timeout 10s $CMD || true  # Allow timeout without failing the script
     
-    # Ask if it worked
-    local is_working
-    read -p "Did the LED panel display correctly? (y/n): " is_working
+    # For the configuration test
+    if [ -t 0 ]; then
+        read -p "Did the LED panel display correctly? (y/n): " is_working
+    else
+        read -p "Did the LED panel display correctly? (y/n): " is_working </dev/tty
+    fi
+    
     if [[ $is_working == "y" || $is_working == "Y" ]]; then
         return 0  # Success
     else
@@ -510,7 +553,11 @@ configure_panel() {
     echo -e "\n${BLUE}Driver Selection (REQUIRED)${NC}"
     echo "1. binding (C++ binding - recommended for most users)"
     echo "2. native (Pure Rust library - experimental)"
-    read -p "Select driver type [1]: " driver_choice
+    if [ -t 0 ]; then
+        read -p "Select driver type [1]: " driver_choice
+    else
+        read -p "Select driver type [1]: " driver_choice </dev/tty
+    fi
     if [[ $driver_choice == "2" ]]; then
         DRIVER="native"
     else
@@ -597,7 +644,11 @@ configure_panel() {
     echo "  18. FlippedStripe - Stripe pattern with flipped orientation"
     echo "  19. P10Outdoor32x16HalfScan - P10 32x16 outdoor panels with half-scan"
 
-    read -p "Select multiplexing type [1]: " multiplex_choice
+    if [ -t 0 ]; then
+        read -p "Select multiplexing type [1]: " multiplex_choice
+    else
+        read -p "Select multiplexing type [1]: " multiplex_choice </dev/tty
+    fi
     case $multiplex_choice in
         2) MULTIPLEXING="Stripe";;
         3) MULTIPLEXING="Checkered";;
