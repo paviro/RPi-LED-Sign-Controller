@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use rpi_led_panel::RGBMatrixConfig;
 
 // Add a ContentType enum to models.rs
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -89,45 +88,3 @@ impl Default for Playlist {
         }
     }
 }
-
-/// Our own configuration structure that stores just what we need
-#[derive(Clone, Debug)]
-pub struct DisplayConfig {
-    pub rows: usize,           // Changed from u32 to usize
-    pub cols: usize,           // Changed from u32 to usize
-    pub chain_length: usize,   // Changed from u32 to usize
-    pub parallel: usize,       // Changed from u32 to usize
-    pub brightness: u8,
-}
-
-impl DisplayConfig {
-    /// Create from command-line args
-    pub fn from_args() -> Self {
-        let matrix_config: RGBMatrixConfig = argh::from_env();
-        
-        Self {
-            rows: matrix_config.rows,
-            cols: matrix_config.cols,
-            chain_length: matrix_config.chain_length,
-            parallel: matrix_config.parallel,
-            brightness: matrix_config.led_brightness,
-        }
-    }
-    
-    /// Create a matrix config from our display config
-    pub fn to_matrix_config(&self) -> RGBMatrixConfig {
-        let mut config: RGBMatrixConfig = argh::from_env();
-        config.led_brightness = self.brightness;
-        config
-    }
-    
-    /// Calculate the total display width in pixels
-    pub fn display_width(&self) -> i32 {
-        (self.cols * self.chain_length) as i32
-    }
-    
-    /// Calculate the total display height in pixels
-    pub fn display_height(&self) -> i32 {
-        (self.rows * self.parallel) as i32
-    }
-} 

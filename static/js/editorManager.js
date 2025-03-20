@@ -4,7 +4,7 @@
 
 // Speed preset configuration settings (px/sec)
 const SPEED_PRESETS = {
-    slow: 30,
+    slow: 35,
     normal: 50,
     fast: 150
 };

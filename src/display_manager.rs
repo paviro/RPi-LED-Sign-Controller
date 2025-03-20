@@ -1,4 +1,4 @@
-use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType, DisplayConfig};
+use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType};
 use embedded_graphics::{
     mono_font::{ascii::FONT_10X20, MonoTextStyle},
     text::Text,
@@ -6,17 +6,19 @@ use embedded_graphics::{
     geometry::Point,
     Drawable,
 };
-use rpi_led_panel::{RGBMatrix, Canvas};
 use std::time::{Duration, Instant};
 use once_cell::sync::Lazy;
 use log::{info, error, debug};
 use rand::Rng;
+use crate::led_driver::{LedDriver, LedCanvas, create_driver};
+use crate::embedded_graphics_support::EmbeddedGraphicsCanvas;
+use crate::config::DisplayConfig;
 
 // Structure to manage our LED matrix state
 pub struct DisplayManager {
     pub playlist: Playlist,
-    matrix: RGBMatrix,
-    pub canvas: Option<Box<Canvas>>,
+    driver: Box<dyn LedDriver>,
+    pub canvas: Option<Box<dyn LedCanvas>>,
     pub display_width: i32,
     pub display_height: i32,
     pub text_width: i32,
@@ -30,37 +32,30 @@ pub struct DisplayManager {
 }
 
 impl DisplayManager {
-    pub fn new() -> Self {
-        Self::with_brightness(100)
-    }
-
-    pub fn with_brightness(brightness: u8) -> Self {
-        // Get config from command-line args
-        let mut display_config = DisplayConfig::from_args();
-        
-        // Override brightness with the requested value
-        display_config.brightness = brightness.clamp(0, 100);
-        
-        // Calculate display dimensions
-        let display_width = display_config.display_width();
-        let display_height = display_config.display_height();
+    pub fn with_config(config: DisplayConfig) -> Self {
+        // Get display dimensions
+        let display_width = config.display_width();
+        let display_height = config.display_height();
         
         info!("Initializing display: {}x{} (rows={}, cols={}, chain={}, parallel={})",
-              display_width, display_height, display_config.rows, display_config.cols, 
-              display_config.chain_length, display_config.parallel);
+              display_width, display_height, config.rows, config.cols, 
+              config.chain_length, config.parallel);
         
-        // Create the matrix config and initialize the matrix
-        let matrix_config = display_config.to_matrix_config();
-        let (matrix, canvas) = RGBMatrix::new(matrix_config, 0)
-            .expect("Matrix initialization failed");
+        // Initialize the driver
+        let driver = create_driver(&config)
+            .expect("Failed to initialize LED matrix driver");
+        
+        // Get the canvas from the driver
+        let mut driver_box = driver;
+        let canvas = driver_box.take_canvas();
         
         // Get default playlist
         let default_playlist = Playlist::default();
         
         Self {
             playlist: default_playlist,
-            matrix,
-            canvas: Some(canvas),
+            driver: driver_box,
+            canvas,
             display_width,
             display_height,
             text_width: 0,
@@ -70,37 +65,31 @@ impl DisplayManager {
             completed_scrolls: 0,
             border_animation_state: 0.0,
             last_animation_update: Instant::now(),
-            config: display_config,
+            config,
         }
     }
 
-    pub fn with_playlist(playlist: Playlist) -> Self {
-        // Get brightness from the playlist
-        let brightness = playlist.brightness;
-        
-        // Get config from command-line args
-        let mut display_config = DisplayConfig::from_args();
-        
-        // Override brightness with the requested value
-        display_config.brightness = brightness.clamp(0, 100);
-        
-        // Calculate display dimensions
-        let display_width = display_config.display_width();
-        let display_height = display_config.display_height();
+    pub fn with_playlist_and_config(playlist: Playlist, config: DisplayConfig) -> Self {
+        // Get dimensions
+        let display_width = config.display_width();
+        let display_height = config.display_height();
         
         info!("Initializing display with playlist: {}x{} (rows={}, cols={}, chain={}, parallel={})",
-              display_width, display_height, display_config.rows, display_config.cols, 
-              display_config.chain_length, display_config.parallel);
+              display_width, display_height, config.rows, config.cols, 
+              config.chain_length, config.parallel);
         
-        // Create the matrix config and initialize the matrix
-        let matrix_config = display_config.to_matrix_config();
-        let (matrix, canvas) = RGBMatrix::new(matrix_config, 0)
-            .expect("Matrix initialization failed");
+        // Initialize the driver
+        let driver = create_driver(&config)
+            .expect("Failed to initialize LED matrix driver");
+        
+        // Get the canvas from the driver
+        let mut driver_box = driver;
+        let canvas = driver_box.take_canvas();
         
         Self {
             playlist,
-            matrix,
-            canvas: Some(canvas),
+            driver: driver_box,
+            canvas,
             display_width,
             display_height,
             text_width: 0,
@@ -110,7 +99,7 @@ impl DisplayManager {
             completed_scrolls: 0,
             border_animation_state: 0.0,
             last_animation_update: Instant::now(),
-            config: display_config,
+            config,
         }
     }
 
@@ -121,18 +110,22 @@ impl DisplayManager {
 
     pub fn get_current_content(&self) -> &DisplayContent {
         if self.playlist.items.is_empty() {
-            // Return a default item with the help message
-            // This is just a temporary reference - it's not stored in the playlist
-            static DEFAULT_ITEM: Lazy<DisplayContent> = Lazy::new(|| DisplayContent {
-                content_type: ContentType::Text,
-                text: String::from("Adjust playlist on the web"),
-                scroll: true,
-                color: (0, 255, 0),  // Green color for visibility
-                speed: 40.0,         // Slightly slower for readability
-                duration: 0,
-                repeat_count: 0,     // Infinite repeat
-                border_effect: None, // No border effect for default item
-                colored_segments: None, // No colored segments for default item
+            // Store the default message item
+            static DEFAULT_ITEM: Lazy<DisplayContent> = Lazy::new(|| {
+                // Get the local IP for a more helpful message
+                let ip = get_local_ip().unwrap_or_else(|| "localhost".to_string());
+                
+                DisplayContent {
+                    content_type: ContentType::Text,
+                    text: format!("LED Matrix Controller | Web interface: http://{}:3000 | Use web UI to configure display", ip),
+                    scroll: true,
+                    color: (0, 255, 0),  // Green color for visibility
+                    speed: 30.0,         // Slower for better readability
+                    duration: 0,
+                    repeat_count: 0,     // Infinite repeat
+                    border_effect: Some(BorderEffect::Pulse { colors: vec![(0, 255, 0), (0, 200, 0)] }), // Add a nice pulsing border
+                    colored_segments: None,
+                }
             });
             &DEFAULT_ITEM
         } else {
@@ -225,7 +218,7 @@ impl DisplayManager {
         self.border_animation_state += dt;
     }
     
-    fn draw_border(&self, canvas: &mut Box<Canvas>, effect: &BorderEffect) {
+    fn draw_border(&self, canvas: &mut Box<dyn LedCanvas>, effect: &BorderEffect) {
         let height = self.display_height; // Use calculated display height
         let width = self.display_width; // Use calculated display width
         
@@ -428,17 +421,19 @@ impl DisplayManager {
         let mut canvas = self.canvas.take().expect("Canvas missing");
         canvas.fill(0, 0, 0);  // Always clear the canvas
         
-        let current = self.get_current_content().clone();  // Clone to avoid borrow issues
+        let current = self.get_current_content().clone();
         let (r, g, b) = current.color;
         let default_text_style = MonoTextStyle::new(&FONT_10X20, Rgb888::new(r, g, b));
         
         self.text_width = self.calculate_text_width(&current.text, &default_text_style);
         
         // Dynamic vertical centering calculation
-        // FONT_10X20 is 20 pixels high
         let font_height = 20;
-        let baseline_adjustment = 5; // Adjust this value as needed for visual centering
+        let baseline_adjustment = 5;
         let vertical_position = (self.display_height / 2) + (font_height / 2) - baseline_adjustment;
+        
+        // Create the embedded graphics canvas wrapper
+        let mut eg_canvas = EmbeddedGraphicsCanvas::new(&mut canvas);
         
         if current.colored_segments.is_some() && !current.colored_segments.as_ref().unwrap().is_empty() {
             // Render text with multiple colors
@@ -458,7 +453,7 @@ impl DisplayManager {
                         };
                         
                         Text::new(default_segment, Point::new(x_pos, vertical_position), default_text_style)
-                            .draw(&mut *canvas)
+                            .draw(&mut eg_canvas)
                             .unwrap();
                     }
                     
@@ -474,7 +469,7 @@ impl DisplayManager {
                     };
                     
                     Text::new(segment_text, Point::new(x_pos, vertical_position), segment_style)
-                        .draw(&mut *canvas)
+                        .draw(&mut eg_canvas)
                         .unwrap();
                     
                     last_end = segment.end;
@@ -491,19 +486,19 @@ impl DisplayManager {
                 };
                 
                 Text::new(remaining_text, Point::new(x_pos, vertical_position), default_text_style)
-                    .draw(&mut *canvas)
+                    .draw(&mut eg_canvas)
                     .unwrap();
             }
         } else {
             // Render text with a single color
             if current.scroll {
                 Text::new(&current.text, Point::new(position, vertical_position), default_text_style)
-                    .draw(&mut *canvas)
+                    .draw(&mut eg_canvas)
                     .unwrap();
             } else {
                 let x = (self.display_width - self.text_width) / 2;
                 Text::new(&current.text, Point::new(x, vertical_position), default_text_style)
-                    .draw(&mut *canvas)
+                    .draw(&mut eg_canvas)
                     .unwrap();
             }
         }
@@ -515,7 +510,8 @@ impl DisplayManager {
             }
         }
         
-        let updated_canvas = self.matrix.update_on_vsync(canvas);
+        // Use our driver to update the canvas
+        let updated_canvas = self.driver.update_canvas(canvas);
         self.canvas = Some(updated_canvas);
     }
 
@@ -525,22 +521,23 @@ impl DisplayManager {
         
         // Update our config
         let mut display_config = self.config.clone();
-        display_config.brightness = brightness;
+        display_config.led_brightness = brightness;
         
         // Create matrix config and log details
-        let matrix_config = display_config.to_matrix_config();
-        
         info!("Reinitializing display: {}x{} (rows={}, cols={}, chain={}, parallel={}, brightness={})",
               display_config.display_width(), display_config.display_height(),
               display_config.rows, display_config.cols, 
               display_config.chain_length, display_config.parallel, brightness);
         
-        // Initialize the matrix
-        match RGBMatrix::new(matrix_config, 0) {
-            Ok((matrix, canvas)) => {
-                debug!("Matrix reinitialized successfully");
-                self.matrix = matrix;
-                self.canvas = Some(canvas);
+        // Initialize the driver
+        match create_driver(&display_config) {
+            Ok(driver) => {
+                debug!("LED matrix driver reinitialized successfully");
+                let mut driver_box = driver;
+                let canvas = driver_box.take_canvas();
+                
+                self.driver = driver_box;
+                self.canvas = canvas;
                 
                 // Update our configuration
                 self.config = display_config;
@@ -554,8 +551,8 @@ impl DisplayManager {
                 self.playlist.brightness = brightness;
             },
             Err(e) => {
-                error!("Failed to reinitialize matrix: {}", e);
-                // Continue using the existing matrix rather than crashing
+                error!("Failed to reinitialize driver: {}", e);
+                // Continue using the existing driver rather than crashing
             }
         }
     }
@@ -569,6 +566,22 @@ impl DisplayManager {
     // Add a method to get the current brightness
     pub fn get_brightness(&self) -> u8 {
         self.playlist.brightness
+    }
+
+    pub fn shutdown(&mut self) {
+        info!("Shutting down display manager");
+        
+        // First clear the canvas if we have one
+        if let Some(mut canvas) = self.canvas.take() {
+            canvas.fill(0, 0, 0); // Clear to black
+            // Put the cleared canvas back
+            self.canvas = Some(canvas);
+            // Update the display one more time to show the black screen
+            self.update_display(0);
+        }
+        
+        // Then shut down the driver
+        self.driver.shutdown();
     }
 }
 
@@ -593,4 +606,25 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
     let b = ((b + m) * 255.0) as u8;
     
     (r, g, b)
+}
+
+// Add this helper function to get the local IP address
+fn get_local_ip() -> Option<String> {
+    use std::net::UdpSocket;
+    
+    // This is a common trick to get the local IP address
+    // We don't actually send anything, just use it to determine the local interface
+    match UdpSocket::bind("0.0.0.0:0") {
+        Ok(socket) => {
+            // Try to "connect" to a public IP (doesn't actually send anything)
+            if socket.connect("8.8.8.8:80").is_ok() {
+                // Get the local address the socket is bound to
+                if let Ok(addr) = socket.local_addr() {
+                    return Some(addr.ip().to_string());
+                }
+            }
+            None
+        },
+        Err(_) => None
+    }
 } 

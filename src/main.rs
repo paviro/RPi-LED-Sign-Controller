@@ -4,6 +4,9 @@ mod models;
 mod static_assets;
 mod playlist_storage;
 mod storage_manager;
+mod led_driver;
+mod embedded_graphics_support;
+mod config;
 
 use axum::{
     routing::{post, get},
@@ -21,6 +24,11 @@ use log::{info, error, debug, LevelFilter};
 use env_logger::Builder;
 use chrono::Local;
 use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
+use config::init_config;
+
+// Global shutdown flag
+static SHUTDOWN_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[tokio::main]
 async fn main() {
@@ -52,6 +60,17 @@ async fn main() {
     let storage = create_storage(None);
     debug!("Storage initialized");
     
+    // Initialize configuration
+    let display_config = init_config();
+    
+    // Validate configuration
+    if let Err(errors) = display_config.validate() {
+        for error in errors {
+            error!("Configuration error: {}", error);
+        }
+        std::process::exit(1);
+    }
+    
     // Initialize display manager with persisted playlist if available
     let display = {
         let storage_guard = storage.lock().unwrap();
@@ -59,12 +78,32 @@ async fn main() {
         
         if let Some(playlist) = persisted_playlist {
             info!("Loaded playlist from filesystem with {} items", playlist.items.len());
-            Arc::new(Mutex::new(DisplayManager::with_playlist(playlist)))
+            Arc::new(Mutex::new(DisplayManager::with_playlist_and_config(playlist, display_config)))
         } else {
             info!("No saved playlist found, using default");
-            Arc::new(Mutex::new(DisplayManager::new()))
+            Arc::new(Mutex::new(DisplayManager::with_config(display_config)))
         }
     };
+    
+    // Set up signal handlers for clean shutdown
+    let display_for_shutdown = display.clone();
+    if let Err(e) = ctrlc::set_handler(move || {
+        info!("Received termination signal, shutting down...");
+        SHUTDOWN_FLAG.store(true, Ordering::SeqCst);
+        
+        // Try to get a lock on the display and shut it down
+        // Using try_lock to avoid deadlocks since we're in a signal handler
+        if let Ok(mut display_guard) = display_for_shutdown.try_lock() {
+            // Clear the display before shutting down
+            display_guard.shutdown();
+        } else {
+            println!("Could not acquire display lock for shutdown - display might not be properly cleared");
+        }
+        
+        std::process::exit(0);
+    }) {
+        error!("Error setting Ctrl-C handler: {}", e);
+    }
     
     // Spawn display update task
     let display_clone = display.clone();
@@ -102,4 +141,8 @@ async fn main() {
     ).await {
         error!("Server error: {}", e);
     }
+
+    info!("Application exiting, cleaning up display...");
+    let mut display_guard = display.lock().await;
+    display_guard.shutdown();
 }

@@ -1,10 +1,11 @@
-use std::fs::{self, File};
+use std::fs::{self, File, Permissions};
 use std::io::{Read, Write, Result as IoResult};
 use std::path::PathBuf;
-use log::{info, error, debug};
+use log::{info, error, debug, warn};
+use std::os::unix::fs::PermissionsExt; // For Unix-style permissions
 
-// Default storage location
-const DEFAULT_DIR: &str = ".led_protest_sign_storage";
+// Default storage location - use a system-wide location in /var/lib
+const DEFAULT_DIR: &str = "/var/lib/led-matrix-controller";
 
 pub struct StorageManager {
     base_dir: PathBuf,
@@ -17,17 +18,16 @@ impl StorageManager {
             debug!("Using custom storage directory: {}", dir);
             PathBuf::from(dir)
         } else {
-            // Otherwise, create a path in the home directory
-            let home_dir = dirs::home_dir().expect("Could not find home directory");
-            let storage_dir = home_dir.join(DEFAULT_DIR);
-            debug!("Using default storage directory: {:?}", storage_dir);
+            // Otherwise, use system-wide directory
+            let storage_dir = PathBuf::from(DEFAULT_DIR);
+            debug!("Using system-wide storage directory: {:?}", storage_dir);
             storage_dir
         };
         
         // Create the instance
         let manager = Self { base_dir };
         
-        // Ensure the directory exists
+        // Ensure the directory exists with appropriate permissions
         if let Err(e) = manager.ensure_directory_exists() {
             error!("Failed to create storage directory: {}", e);
         }
@@ -40,12 +40,26 @@ impl StorageManager {
         self.base_dir.join(filename)
     }
     
-    // Ensure the base directory exists
+    // Ensure the base directory exists with world-writable permissions
     pub fn ensure_directory_exists(&self) -> IoResult<()> {
         if !self.base_dir.exists() {
             debug!("Creating storage directory: {:?}", self.base_dir);
             fs::create_dir_all(&self.base_dir)?;
-            info!("Created storage directory: {:?}", self.base_dir);
+            
+            // Set directory permissions to 777 (rwxrwxrwx) so anyone can read/write
+            #[cfg(unix)]
+            {
+                let permissions = Permissions::from_mode(0o777);
+                fs::set_permissions(&self.base_dir, permissions)?;
+                info!("Created world-writable storage directory: {:?}", self.base_dir);
+                warn!("Using world-writable directory - this is a temporary solution until privilege dropping is implemented");
+            }
+            
+            #[cfg(not(unix))]
+            {
+                info!("Created storage directory: {:?}", self.base_dir);
+                warn!("Permission changes not supported on this platform");
+            }
         }
         Ok(())
     }
@@ -60,15 +74,23 @@ impl StorageManager {
         Ok(contents)
     }
     
-    // Write a file to storage
+    // Write a file to storage with world-writable permissions
     pub fn write_file(&self, filename: &str, contents: &str) -> IoResult<()> {
         // First ensure directory exists
         self.ensure_directory_exists()?;
         
         let file_path = self.get_file_path(filename);
         debug!("Writing to file: {:?}", file_path);
-        let mut file = File::create(file_path)?;
+        let mut file = File::create(&file_path)?;
         file.write_all(contents.as_bytes())?;
+        
+        // Set file permissions to 666 (rw-rw-rw-) so anyone can read/write
+        #[cfg(unix)]
+        {
+            let permissions = Permissions::from_mode(0o666);
+            fs::set_permissions(&file_path, permissions)?;
+        }
+        
         debug!("Successfully wrote {} bytes to {}", contents.len(), filename);
         Ok(())
     }

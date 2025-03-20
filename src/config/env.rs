@@ -1,0 +1,168 @@
+//! Environment variable handling
+
+/// Environment variables for LED matrix configuration
+#[derive(Debug, Default, Clone)]
+pub struct EnvVars {
+    pub rows: Option<usize>,
+    pub cols: Option<usize>,
+    pub chain_length: Option<usize>,
+    pub parallel: Option<usize>,
+    pub led_brightness: Option<u8>,
+    pub hardware_mapping: Option<String>,
+    pub gpio_slowdown: Option<u32>,
+    pub pwm_bits: Option<u8>,
+    pub pwm_lsb_nanoseconds: Option<u32>,
+    pub pixel_mapper: Option<String>,
+    pub multiplexing: Option<String>,
+    pub refresh_rate: Option<usize>,
+    pub pi_chip: Option<String>,
+    pub interlaced: Option<bool>,
+    pub dither_bits: Option<usize>,
+    pub panel_type: Option<String>,
+    pub row_setter: Option<String>,
+    pub led_sequence: Option<String>,
+    pub hardware_pulsing: Option<bool>,
+    pub show_refresh: Option<bool>,
+    pub inverse_colors: Option<bool>,
+    pub limit_refresh: Option<u32>,
+}
+
+/// Load configuration from environment variables
+pub fn load_env_vars() -> EnvVars {
+    let mut env = EnvVars::default();
+    
+    // Matrix dimensions
+    if let Ok(value) = std::env::var("LED_ROWS") {
+        if let Ok(rows) = value.parse() {
+            env.rows = Some(rows);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_COLS") {
+        if let Ok(cols) = value.parse() {
+            env.cols = Some(cols);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_CHAIN_LENGTH") {
+        if let Ok(chain) = value.parse() {
+            env.chain_length = Some(chain);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_PARALLEL") {
+        if let Ok(parallel) = value.parse() {
+            env.parallel = Some(parallel);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_BRIGHTNESS") {
+        if let Ok(brightness) = value.parse::<u8>() {
+            env.led_brightness = Some(brightness.clamp(0, 100));
+        }
+    }
+    
+    // Hardware configuration
+    if let Ok(value) = std::env::var("LED_HARDWARE_MAPPING") {
+        env.hardware_mapping = Some(value);
+    }
+    
+    if let Ok(value) = std::env::var("LED_GPIO_SLOWDOWN") {
+        if let Ok(slowdown) = value.parse() {
+            env.gpio_slowdown = Some(slowdown);
+        }
+    }
+    
+    // PWM settings
+    if let Ok(value) = std::env::var("LED_PWM_BITS") {
+        if let Ok(bits) = value.parse() {
+            env.pwm_bits = Some(bits);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_PWM_LSB_NANOSECONDS") {
+        if let Ok(ns) = value.parse() {
+            env.pwm_lsb_nanoseconds = Some(ns);
+        }
+    }
+    
+    // Panel configuration
+    if let Ok(value) = std::env::var("LED_PIXEL_MAPPER") {
+        env.pixel_mapper = Some(value);
+    }
+    
+    if let Ok(value) = std::env::var("LED_MULTIPLEXING") {
+        env.multiplexing = Some(value);
+    }
+    
+    // New environment variables
+    if let Ok(value) = std::env::var("LED_REFRESH_RATE") {
+        if let Ok(rate) = value.parse() {
+            env.refresh_rate = Some(rate);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_PI_CHIP") {
+        env.pi_chip = Some(value);
+    }
+    
+    if let Ok(value) = std::env::var("LED_INTERLACED") {
+        if let Ok(enabled) = value.parse::<bool>() {
+            env.interlaced = Some(enabled);
+        } else if let Ok(enabled) = value.parse::<u8>() {
+            // Also support numeric values (0/1)
+            env.interlaced = Some(enabled != 0);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_DITHER_BITS") {
+        if let Ok(bits) = value.parse() {
+            env.dither_bits = Some(bits);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_PANEL_TYPE") {
+        env.panel_type = Some(value);
+    }
+    
+    if let Ok(value) = std::env::var("LED_ROW_SETTER") {
+        env.row_setter = Some(value);
+    }
+    
+    if let Ok(value) = std::env::var("LED_SEQUENCE") {
+        env.led_sequence = Some(value);
+    }
+    
+    if let Ok(value) = std::env::var("LED_HARDWARE_PULSING") {
+        if let Ok(enabled) = value.parse::<bool>() {
+            env.hardware_pulsing = Some(enabled);
+        } else if let Ok(enabled) = value.parse::<u8>() {
+            // Also support numeric values (0/1)
+            env.hardware_pulsing = Some(enabled != 0);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_SHOW_REFRESH") {
+        if let Ok(enabled) = value.parse::<bool>() {
+            env.show_refresh = Some(enabled);
+        } else if let Ok(enabled) = value.parse::<u8>() {
+            env.show_refresh = Some(enabled != 0);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_INVERSE_COLORS") {
+        if let Ok(enabled) = value.parse::<bool>() {
+            env.inverse_colors = Some(enabled);
+        } else if let Ok(enabled) = value.parse::<u8>() {
+            env.inverse_colors = Some(enabled != 0);
+        }
+    }
+    
+    if let Ok(value) = std::env::var("LED_LIMIT_REFRESH") {
+        if let Ok(limit) = value.parse() {
+            env.limit_refresh = Some(limit);
+        }
+    }
+    
+    env
+} 
