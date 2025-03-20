@@ -1,30 +1,29 @@
 use std::sync::{Arc, Mutex};
 use crate::models::Playlist;
-use crate::storage_manager::StorageManager;
+use crate::storage_manager::{StorageManager, paths};
 use log::{info, error, debug};
 
-// File name constants
-const PLAYLIST_FILE: &str = "playlist.json";
-
-pub struct PlaylistStorage {
+// Unified storage for all application settings
+pub struct AppStorage {
     storage_manager: StorageManager,
 }
 
-impl PlaylistStorage {
+impl AppStorage {
     pub fn new(storage_manager: StorageManager) -> Self {
-        debug!("Initializing PlaylistStorage");
+        debug!("Initializing AppStorage");
         Self { storage_manager }
     }
 
+    // Playlist-related methods
     pub fn load_playlist(&self) -> Option<Playlist> {
         // Check if the file exists first
-        if !self.storage_manager.file_exists(PLAYLIST_FILE) {
+        if !self.storage_manager.file_exists(paths::PLAYLIST_FILE) {
             debug!("No playlist file found");
             return None;
         }
 
         // Try to read and parse the file
-        match self.storage_manager.read_file(PLAYLIST_FILE) {
+        match self.storage_manager.read_file(paths::PLAYLIST_FILE) {
             Ok(contents) => {
                 debug!("Loaded playlist file, attempting to parse");
                 match serde_json::from_str::<Playlist>(&contents) {
@@ -52,9 +51,9 @@ impl PlaylistStorage {
         match serde_json::to_string_pretty(playlist) {
             Ok(json) => {
                 // Write the JSON to the file
-                match self.storage_manager.write_file(PLAYLIST_FILE, &json) {
+                match self.storage_manager.write_file(paths::PLAYLIST_FILE, &json) {
                     Ok(_) => {
-                        let file_path = self.storage_manager.get_file_path(PLAYLIST_FILE);
+                        let file_path = self.storage_manager.get_file_path(paths::PLAYLIST_FILE);
                         info!("Playlist saved to: {:?}", file_path);
                         true
                     }
@@ -70,51 +69,17 @@ impl PlaylistStorage {
             }
         }
     }
-
-    // Constant for brightness file
-    const BRIGHTNESS_FILE: &str = "brightness.json";
     
-    // Save just the brightness setting
-    pub fn save_brightness(&self, brightness: u8) -> bool {
-        debug!("Saving brightness setting: {}", brightness);
-        
-        #[derive(serde::Serialize)]
-        struct BrightnessSetting {
-            brightness: u8,
-        }
-        
-        let setting = BrightnessSetting { brightness };
-        
-        match serde_json::to_string_pretty(&setting) {
-            Ok(json) => {
-                match self.storage_manager.write_file(Self::BRIGHTNESS_FILE, &json) {
-                    Ok(_) => {
-                        info!("Brightness saved: {}", brightness);
-                        true
-                    }
-                    Err(e) => {
-                        error!("Error writing brightness file: {}", e);
-                        false
-                    }
-                }
-            }
-            Err(e) => {
-                error!("Error serializing brightness: {}", e);
-                false
-            }
-        }
-    }
-    
-    // Load just the brightness setting
+    // Display settings methods
     pub fn load_brightness(&self) -> Option<u8> {
         debug!("Loading brightness setting");
         
-        if !self.storage_manager.file_exists(Self::BRIGHTNESS_FILE) {
+        if !self.storage_manager.file_exists(paths::BRIGHTNESS_FILE) {
             debug!("No brightness file found");
             return None;
         }
         
-        match self.storage_manager.read_file(Self::BRIGHTNESS_FILE) {
+        match self.storage_manager.read_file(paths::BRIGHTNESS_FILE) {
             Ok(contents) => {
                 #[derive(serde::Deserialize)]
                 struct BrightnessSetting {
@@ -138,20 +103,50 @@ impl PlaylistStorage {
             }
         }
     }
+    
+    pub fn save_brightness(&self, brightness: u8) -> bool {
+        debug!("Saving brightness setting: {}", brightness);
+        
+        #[derive(serde::Serialize)]
+        struct BrightnessSetting {
+            brightness: u8,
+        }
+        
+        let setting = BrightnessSetting { brightness };
+        
+        match serde_json::to_string_pretty(&setting) {
+            Ok(json) => {
+                match self.storage_manager.write_file(paths::BRIGHTNESS_FILE, &json) {
+                    Ok(_) => {
+                        info!("Brightness saved: {}", brightness);
+                        true
+                    }
+                    Err(e) => {
+                        error!("Error writing brightness file: {}", e);
+                        false
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Error serializing brightness: {}", e);
+                false
+            }
+        }
+    }
 }
 
 // Create a global storage instance that can be shared across threads
-pub type SharedStorage = Arc<Mutex<PlaylistStorage>>;
+pub type SharedStorage = Arc<Mutex<AppStorage>>;
 
 pub fn create_storage(custom_dir: Option<String>) -> SharedStorage {
-    info!("Creating storage system");
+    info!("Creating application storage system");
     
     // Create the storage manager with the specified directory
     let storage_manager = StorageManager::new(custom_dir);
     
-    // Create the playlist storage using the manager
-    let playlist_storage = PlaylistStorage::new(storage_manager);
+    // Create the app storage using the manager
+    let app_storage = AppStorage::new(storage_manager);
     
     // Wrap in Arc<Mutex<>> for thread safety
-    Arc::new(Mutex::new(playlist_storage))
+    Arc::new(Mutex::new(app_storage))
 } 

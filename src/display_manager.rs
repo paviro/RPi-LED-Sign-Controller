@@ -8,7 +8,7 @@ use embedded_graphics::{
 };
 use std::time::{Duration, Instant};
 use once_cell::sync::Lazy;
-use log::{info, error, debug};
+use log::{info};
 use rand::Rng;
 use crate::led_driver::{LedDriver, LedCanvas, create_driver};
 use crate::embedded_graphics_support::EmbeddedGraphicsCanvas;
@@ -231,6 +231,8 @@ impl DisplayManager {
                 for i in 0..width {
                     let hue = (i as f32 / width as f32 + self.border_animation_state) % 1.0;
                     let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
+                    // Apply brightness scaling
+                    let (r, g, b) = self.apply_brightness((r, g, b));
                     
                     // Top and bottom borders (2 pixels thick)
                     canvas.set_pixel(i as usize, 0, r, g, b);
@@ -242,6 +244,8 @@ impl DisplayManager {
                 for i in 0..height {
                     let hue = (i as f32 / height as f32 + self.border_animation_state) % 1.0;
                     let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
+                    // Apply brightness scaling
+                    let (r, g, b) = self.apply_brightness((r, g, b));
                     
                     // Left and right borders (2 pixels thick)
                     canvas.set_pixel(0, i as usize, r, g, b);
@@ -283,17 +287,22 @@ impl DisplayManager {
                 // Calculate brightness using a triangle wave
                 let progress_in_color = (current_position % seconds_per_color) / seconds_per_color;
                 
-                let brightness = if progress_in_color < 0.5 {
+                let effect_brightness = if progress_in_color < 0.5 {
                     progress_in_color * 2.0 // 0.0 -> 1.0
                 } else {
                     (1.0 - progress_in_color) * 2.0 // 1.0 -> 0.0
                 };
                 
-                // Get the color and apply brightness
+                // Get the color and pre-scale it for the pulse effect
                 let (r, g, b) = color_options[color_index];
-                let r = (r as f32 * brightness) as u8;
-                let g = (g as f32 * brightness) as u8;
-                let b = (b as f32 * brightness) as u8;
+                let pre_scaled = (
+                    (r as f32 * effect_brightness) as u8,
+                    (g as f32 * effect_brightness) as u8,
+                    (b as f32 * effect_brightness) as u8
+                );
+                
+                // Then apply user brightness scaling using our consistent method
+                let (r, g, b) = self.apply_brightness(pre_scaled);
                 
                 // Draw the border (2 pixels thick)
                 for i in 0..width {
@@ -324,9 +333,9 @@ impl DisplayManager {
                 
                 // Create sparkles based on animation state - increase count for thicker border
                 for _ in 0..30 { // Increased from 20 to provide more density for 2-pixel border
-                    // Randomly select one of the available colors
+                    // Randomly select one of the available colors and apply brightness
                     let color_index = rng.gen_range(0..color_options.len());
-                    let (r, g, b) = color_options[color_index];
+                    let (r, g, b) = self.apply_brightness(color_options[color_index]);
                     
                     // Random position along the border
                     let pos = rng.gen_range(0..2 * (width + height - 2));
@@ -385,10 +394,13 @@ impl DisplayManager {
                     let (r1, g1, b1) = colors[segment_idx];
                     let (r2, g2, b2) = colors[next_segment_idx];
                     
-                    // Interpolate colors
+                    // Interpolate colors and apply brightness
                     let r = (r1 as f32 * (1.0 - segment_progress) + r2 as f32 * segment_progress) as u8;
                     let g = (g1 as f32 * (1.0 - segment_progress) + g2 as f32 * segment_progress) as u8;
                     let b = (b1 as f32 * (1.0 - segment_progress) + b2 as f32 * segment_progress) as u8;
+                    
+                    // Apply brightness scaling
+                    let (r, g, b) = self.apply_brightness((r, g, b));
                     
                     // Map position to actual pixel on display (2 pixels thick)
                     if pos < width as usize {
@@ -422,7 +434,8 @@ impl DisplayManager {
         canvas.fill(0, 0, 0);  // Always clear the canvas
         
         let current = self.get_current_content().clone();
-        let (r, g, b) = current.color;
+        // Apply brightness scaling to the text color
+        let (r, g, b) = self.apply_brightness(current.color);
         let default_text_style = MonoTextStyle::new(&FONT_10X20, Rgb888::new(r, g, b));
         
         self.text_width = self.calculate_text_width(&current.text, &default_text_style);
@@ -459,7 +472,8 @@ impl DisplayManager {
                     
                     // Render the colored segment
                     let segment_text = &current.text[segment.start..segment.end];
-                    let (sr, sg, sb) = segment.color;
+                    // Apply brightness scaling to segment color
+                    let (sr, sg, sb) = self.apply_brightness(segment.color);
                     let segment_style = MonoTextStyle::new(&FONT_10X20, Rgb888::new(sr, sg, sb));
                     
                     let x_pos = if current.scroll {
@@ -503,7 +517,7 @@ impl DisplayManager {
             }
         }
         
-        // Draw border effect if one is specified
+        // Draw border effect with brightness scaling
         if let Some(effect) = &current.border_effect {
             if effect != &BorderEffect::None {
                 self.draw_border(&mut canvas, effect);
@@ -515,52 +529,6 @@ impl DisplayManager {
         self.canvas = Some(updated_canvas);
     }
 
-    pub fn reinitialize_with_brightness(&mut self, brightness: u8) {
-        let brightness = brightness.clamp(0, 100);
-        info!("Reinitializing display with brightness: {}", brightness);
-        
-        // Calculate scaled brightness based on limit
-        let scaled_brightness = (brightness as f32 * self.config.limit_max_brightness as f32 / 100.0) as u8;
-        info!("Scaled brightness: {} (limit: {}%)", scaled_brightness, self.config.limit_max_brightness);
-        
-        // Update our config
-        let mut display_config = self.config.clone();
-        display_config.led_brightness = scaled_brightness;
-        
-        // Create matrix config and log details
-        info!("Reinitializing display: {}x{} (rows={}, cols={}, chain={}, parallel={}, brightness={})",
-              display_config.display_width(), display_config.display_height(),
-              display_config.rows, display_config.cols, 
-              display_config.chain_length, display_config.parallel, scaled_brightness);
-        
-        // Initialize the driver
-        match create_driver(&display_config) {
-            Ok(driver) => {
-                debug!("LED matrix driver reinitialized successfully");
-                let mut driver_box = driver;
-                let canvas = driver_box.take_canvas();
-                
-                self.driver = driver_box;
-                self.canvas = canvas;
-                
-                // Update our configuration
-                self.config = display_config;
-                
-                // Update dimensions
-                self.display_width = self.config.display_width();
-                self.display_height = self.config.display_height();
-                self.scroll_position = self.display_width;
-                
-                // Update global brightness in the playlist
-                self.playlist.brightness = scaled_brightness;
-            },
-            Err(e) => {
-                error!("Failed to reinitialize driver: {}", e);
-                // Continue using the existing driver rather than crashing
-            }
-        }
-    }
-
     // Add a method to check if the playlist is empty
     #[allow(dead_code)]
     pub fn is_playlist_empty(&self) -> bool {
@@ -569,7 +537,7 @@ impl DisplayManager {
 
     // Add a method to get the current brightness
     pub fn get_brightness(&self) -> u8 {
-        self.playlist.brightness
+        self.config.user_brightness
     }
 
     pub fn shutdown(&mut self) {
@@ -586,6 +554,28 @@ impl DisplayManager {
         
         // Then shut down the driver
         self.driver.shutdown();
+    }
+
+    /// Applies software brightness scaling to colors
+    /// 
+    /// This scales the RGB values by the current user brightness level (0-100%)
+    /// instead of reinitializing the LED driver with a new hardware brightness.
+    fn apply_brightness(&self, color: (u8, u8, u8)) -> (u8, u8, u8) {
+        let brightness_scale = self.config.get_effective_brightness();
+        (
+            (color.0 as f32 * brightness_scale) as u8,
+            (color.1 as f32 * brightness_scale) as u8,
+            (color.2 as f32 * brightness_scale) as u8,
+        )
+    }
+
+    // Update the method to set brightness without reinitializing
+    pub fn set_brightness(&mut self, brightness: u8) {
+        let brightness = brightness.clamp(0, 100);
+        info!("Updating display brightness: {}", brightness);
+        
+        // Update the brightness in the config instead of the playlist
+        self.config.user_brightness = brightness;
     }
 }
 

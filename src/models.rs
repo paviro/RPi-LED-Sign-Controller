@@ -75,7 +75,6 @@ pub struct Playlist {
     pub items: Vec<DisplayContent>,
     pub active_index: usize,
     pub repeat: bool,
-    pub brightness: u8,  // Global brightness setting
 }
 
 impl Default for Playlist {
@@ -84,7 +83,6 @@ impl Default for Playlist {
             items: vec![],  // Start with an empty playlist
             active_index: 0,
             repeat: true,
-            brightness: 100,  // Default brightness
         }
     }
 }

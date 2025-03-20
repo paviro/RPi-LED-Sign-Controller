@@ -12,7 +12,7 @@ use crate::{
     display_manager::DisplayManager,
     models::Playlist,
     static_assets::StaticAssets,
-    playlist_storage::SharedStorage,
+    app_storage::SharedStorage,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -28,16 +28,6 @@ pub async fn update_playlist(
     debug!("Updating display with playlist containing {} items", playlist.items.len());
     
     let mut display = display.lock().await;
-    
-    // Check if we need to reinitialize due to brightness change
-    let old_brightness = display.get_brightness();
-    let new_brightness = playlist.brightness;
-    
-    if old_brightness != new_brightness {
-        debug!("Brightness changed from {} to {}, reinitializing display", 
-              old_brightness, new_brightness);
-        display.reinitialize_with_brightness(new_brightness);
-    }
     
     // Update the display
     display.playlist = playlist.clone();
@@ -174,18 +164,19 @@ pub async fn get_brightness(
     })
 }
 
-// New handler to update the brightness
+// Handler for updating brightness - applies brightness through color scaling
 pub async fn update_brightness(
     State((display, storage)): State<(Arc<Mutex<DisplayManager>>, SharedStorage)>,
     Json(settings): Json<BrightnessSettings>,
 ) -> StatusCode {
-    // Keep this for server-side logging only
     debug!("Updating brightness to {}", settings.brightness);
     
     let mut display = display.lock().await;
-    display.reinitialize_with_brightness(settings.brightness);
     
-    // Save the brightness setting separately
+    // Apply brightness scaling through DisplayManager's method
+    display.set_brightness(settings.brightness);
+    
+    // Save the brightness setting for persistence across restarts
     let storage_guard = storage.lock().unwrap();
     if !storage_guard.save_brightness(settings.brightness) {
         error!("Failed to save brightness setting");

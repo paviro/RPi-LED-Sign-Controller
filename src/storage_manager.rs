@@ -4,8 +4,15 @@ use std::path::PathBuf;
 use log::{info, error, debug, warn};
 use std::os::unix::fs::PermissionsExt; // For Unix-style permissions
 
-// Default storage location - use a system-wide location in /var/lib
-const DEFAULT_DIR: &str = "/var/lib/led-matrix-controller";
+// System-wide storage location
+pub const DEFAULT_DIR: &str = "/var/lib/led-matrix-controller";
+
+// Path constants for all stored files
+pub mod paths {
+    // Main data files
+    pub const PLAYLIST_FILE: &str = "playlist.json";
+    pub const BRIGHTNESS_FILE: &str = "brightness.json";
+}
 
 pub struct StorageManager {
     base_dir: PathBuf,

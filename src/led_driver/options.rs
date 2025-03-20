@@ -67,8 +67,7 @@ impl MatrixOptions {
             cols: config.cols,
             chain_length: config.chain_length,
             parallel: config.parallel,
-            brightness: config.led_brightness,
-            // Apply CLI arguments
+            brightness: config.limit_max_brightness,
             hardware_mapping: config.hardware_mapping.clone(),
             pwm_bits: config.pwm_bits,
             pwm_lsb_nanoseconds: config.pwm_lsb_nanoseconds,

@@ -2,11 +2,12 @@ mod display_manager;
 mod handlers;
 mod models;
 mod static_assets;
-mod playlist_storage;
+mod app_storage;
 mod storage_manager;
 mod led_driver;
 mod embedded_graphics_support;
 mod config;
+use crate::app_storage::{create_storage};
 
 use axum::{
     routing::{post, get},
@@ -16,8 +17,6 @@ use axum_embed::ServeEmbed;
 use static_assets::StaticAssets;
 use display_manager::DisplayManager;
 use handlers::{update_playlist, get_playlist, index_handler, editor_handler, display_loop, get_brightness, update_brightness};
-#[allow(unused_imports)]
-use playlist_storage::{create_storage, SharedStorage};
 use std::{sync::Arc, net::SocketAddr};
 use tokio::sync::Mutex;
 use log::{info, error, debug, LevelFilter};
@@ -90,18 +89,27 @@ async fn main() {
         std::process::exit(1);
     }
     
-    // Initialize display manager with persisted playlist if available
+    // Initialize display manager with persisted playlist and brightness if available
     let display = {
         let storage_guard = storage.lock().unwrap();
         let persisted_playlist = storage_guard.load_playlist();
+        let persisted_brightness = storage_guard.load_brightness();
         
-        if let Some(playlist) = persisted_playlist {
+        let mut display_manager = if let Some(playlist) = persisted_playlist {
             info!("Loaded playlist from filesystem with {} items", playlist.items.len());
-            Arc::new(Mutex::new(DisplayManager::with_playlist_and_config(playlist, &display_config)))
+            DisplayManager::with_playlist_and_config(playlist, &display_config)
         } else {
             info!("No saved playlist found, using default");
-            Arc::new(Mutex::new(DisplayManager::with_config(&display_config)))
+            DisplayManager::with_config(&display_config)
+        };
+        
+        // Apply the saved brightness if available
+        if let Some(brightness) = persisted_brightness {
+            info!("Applying saved brightness: {}", brightness);
+            display_manager.set_brightness(brightness);
         }
+        
+        Arc::new(Mutex::new(display_manager))
     };
     
     // Set up signal handlers for clean shutdown

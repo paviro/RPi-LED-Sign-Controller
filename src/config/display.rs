@@ -11,7 +11,7 @@ pub struct DisplayConfig {
     pub cols: usize,           
     pub chain_length: usize,   
     pub parallel: usize,       
-    pub led_brightness: u8,
+    pub user_brightness: u8,
     pub driver_type: DriverType,
     
     // Additional options
@@ -26,7 +26,6 @@ pub struct DisplayConfig {
     pub pixel_mapper: Option<String>,
     pub row_setter: String,
     pub led_sequence: String,
-    #[allow(dead_code)]
     pub pi_chip: Option<String>,
     pub hardware_pulsing: bool,
     pub show_refresh: bool,
@@ -76,7 +75,8 @@ impl DisplayConfig {
             .unwrap_or(cli_args.limit_max_brightness)
             .clamp(0, 100);
 
-        let led_brightness = limit_max_brightness;
+        // Initialize user brightness to 100% by default
+        let user_brightness = 100;
         
         // Hardware settings
         let hardware_mapping = env_vars.hardware_mapping
@@ -128,7 +128,8 @@ impl DisplayConfig {
             cols,
             chain_length,
             parallel,
-            led_brightness,
+            user_brightness,
+            limit_max_brightness,
             driver_type,
             
             hardware_mapping,
@@ -147,7 +148,6 @@ impl DisplayConfig {
             show_refresh,
             inverse_colors,
             limit_refresh_rate,
-            limit_max_brightness,
             port,
             interface,
         }
@@ -191,8 +191,8 @@ impl DisplayConfig {
             errors.push("PWM bits must be between 1 and 11".to_string());
         }
         
-        if self.led_brightness > 100 {
-            errors.push("LED brightness must be between 0 and 100".to_string());
+        if self.user_brightness > 100 {
+            errors.push("User brightness must be between 0 and 100".to_string());
         }
         
         if let Some(slowdown) = self.gpio_slowdown {
@@ -215,5 +215,10 @@ impl DisplayConfig {
         } else {
             Err(errors)
         }
+    }
+    
+    /// Get effective brightness
+    pub fn get_effective_brightness(&self) -> f32 {
+        self.user_brightness as f32 / 100.0
     }
 } 
