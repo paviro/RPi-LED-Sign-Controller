@@ -272,7 +272,7 @@ if [ "$UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_control
         rm "$UPDATE_MARKER"
     fi
 
-    # After binary update section - around line 226
+    # After binary update section
     if [ -f "/etc/systemd/system/rpi-led-sign.service" ] && [ "$UPDATES_AVAILABLE" -eq 1 ]; then
         if ! ask_reconfigure "update"; then
             exit 0
@@ -281,8 +281,8 @@ if [ "$UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_control
     fi
 fi
 
-# No updates available section - around line 238
-elif [ $APP_INSTALLED -eq 1 ] && [ $UPDATES_AVAILABLE -eq 0 ]; then
+# Separate if statement for no updates, not an elif
+if [ $APP_INSTALLED -eq 1 ] && [ $UPDATES_AVAILABLE -eq 0 ]; then
     if ! ask_reconfigure "no_update"; then
         exit 0
     fi
