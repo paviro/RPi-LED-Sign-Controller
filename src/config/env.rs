@@ -3,6 +3,7 @@
 /// Environment variables for LED matrix configuration
 #[derive(Debug, Default, Clone)]
 pub struct EnvVars {
+    pub driver: Option<String>,
     pub rows: Option<usize>,
     pub cols: Option<usize>,
     pub chain_length: Option<usize>,
@@ -30,6 +31,11 @@ pub struct EnvVars {
 /// Load configuration from environment variables
 pub fn load_env_vars() -> EnvVars {
     let mut env = EnvVars::default();
+    
+    // Driver type
+    if let Ok(value) = std::env::var("LED_DRIVER") {
+        env.driver = Some(value);
+    }
     
     // Matrix dimensions
     if let Ok(value) = std::env::var("LED_ROWS") {

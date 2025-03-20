@@ -39,8 +39,10 @@ pub struct DisplayConfig {
 impl DisplayConfig {
     /// Create a new configuration by combining CLI arguments and environment variables
     pub fn new(cli_args: CliArgs, env_vars: EnvVars) -> Self {
-        // Determine driver type from CLI argument
-        let driver_type = match &cli_args.driver {
+        // Determine driver type from CLI argument or environment variable
+        let driver_arg = env_vars.driver.or_else(|| cli_args.driver.clone());
+        
+        let driver_type = match &driver_arg {
             Some(driver) if driver == "binding" => {
                 info!("Selected driver: C++ binding for rpi-rgb-led-matrix (@https://github.com/hzeller/rpi-rgb-led-matrix)");
                 DriverType::RpiLedMatrix
@@ -50,12 +52,12 @@ impl DisplayConfig {
                 DriverType::RpiLedPanel
             },
             None => {
-                println!("ERROR: You must specify a driver type (--driver native|binding)");
+                println!("ERROR: You must specify a driver type (--driver native|binding or LED_DRIVER=native|binding)");
                 println!("\nFor help, run: {} --help", std::env::args().next().unwrap_or_else(|| "program".to_string()));
                 std::process::exit(1);
             },
             _ => {
-                println!("ERROR: Invalid driver type: {:?}. Must be 'native' or 'binding'", cli_args.driver);
+                println!("ERROR: Invalid driver type: {:?}. Must be 'native' or 'binding'", driver_arg);
                 println!("\nFor help, run: {} --help", std::env::args().next().unwrap_or_else(|| "program".to_string()));
                 std::process::exit(1);
             }

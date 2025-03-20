@@ -85,6 +85,7 @@ All CLI options can be set via environment variables with the `LED_` prefix.
 
 | Environment Variable | Equivalent CLI Argument |
 |----------------------|-------------------------|
+| `LED_DRIVER` | `--driver` |
 | `LED_ROWS` | `--rows` |
 | `LED_COLS` | `--cols` |
 | `LED_CHAIN_LENGTH` | `--chain-length` |
