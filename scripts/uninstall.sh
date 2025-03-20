@@ -18,9 +18,6 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# Call the function to check for Debian-based system
-check_debian_based
-
 # Determine the actual user who ran the script
 ACTUAL_USER=${SUDO_USER:-$USER}
 ACTUAL_HOME=$(eval echo ~$ACTUAL_USER)
