@@ -58,7 +58,7 @@ The application supports two different LED matrix drivers:
 | `--driver`, `-d` | Option | Driver type: "native" or "binding" (REQUIRED) | - | Both |
 | `--rows`, `-r` | Option | Number of rows per panel | 32 | Both |
 | `--cols`, `-c` | Option | Number of columns per panel | 64 | Both |
-| `--parallel`, `-p` | Option | Number of chains to run in parallel | 1 | Both (binding: 1-3 only) |
+| `--parallel`, `-p` | Option | Number of chains to run in parallel (1-3 only) | 1 | Both |
 | `--chain-length`, `-n` | Option | Number of daisy-chained panels | 1 | Both |
 | `--led-brightness`, `-b` | Option | Brightness percent (0-100) | 100 | Both |
 | `--hardware-mapping` | Option | Display wiring configuration | "regular" | Both |

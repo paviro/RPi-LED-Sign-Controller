@@ -25,7 +25,7 @@ pub struct CliArgs {
 
     #[argh(option, short = 'p', default = "1")]
     /// how many chains to run in parallel. Default: 1 [native, binding]
-    /// note: binding driver only supports values 1-3
+    /// note: both drivers only support values 1-3
     pub parallel: usize,
 
     #[argh(option, short = 'n', default = "1")]

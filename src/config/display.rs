@@ -157,6 +157,24 @@ impl DisplayConfig {
             errors.push("Parallel chains must be greater than 0".to_string());
         }
         
+        if self.parallel > 3 {
+            errors.push("Parallel chains must be between 1 and 3 (limitation of both drivers)".to_string());
+        }
+        
+        if self.pwm_bits < 1 || self.pwm_bits > 11 {
+            errors.push("PWM bits must be between 1 and 11".to_string());
+        }
+        
+        if self.led_brightness > 100 {
+            errors.push("LED brightness must be between 0 and 100".to_string());
+        }
+        
+        if let Some(slowdown) = self.gpio_slowdown {
+            if slowdown > 4 {
+                errors.push("GPIO slowdown must be between 0 and 4".to_string());
+            }
+        }
+        
         if errors.is_empty() {
             Ok(())
         } else {
