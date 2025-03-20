@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::any::Any;
-use log::{debug, error, warn};
+use log::{error, warn};
 use rpi_led_matrix::{LedMatrix, LedMatrixOptions, LedCanvas as RpiCanvas, 
                       LedColor, LedRuntimeOptions};
 
