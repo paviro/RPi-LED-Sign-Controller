@@ -243,6 +243,11 @@ impl RpiLedMatrixDriver {
         // Runtime options: set reasonable defaults
         rt_options.set_drop_privileges(true); // Drop privileges after initialization
         
+        // Check for driver-specific unsupported options
+        if let Some(chip) = &options.pi_chip {
+            unsupported_options.push(format!("pi_chip={}", chip));
+        }
+        
         // Check if we encountered any unsupported options
         if !unsupported_options.is_empty() {
             return Err(format!(
