@@ -80,7 +80,7 @@ impl LedDriver for RpiLedPanelDriver {
         // Convert to rpi-led-panel specific config
         let matrix_config = Self::create_matrix_config(&options)?;
         
-        debug!("Initializing rpi-led-panel with options: {:?}", options);
+        debug!("Initializing native driver with options: {:?}", options);
         
         match RGBMatrix::new(matrix_config, 0) {
             Ok((matrix, canvas)) => {

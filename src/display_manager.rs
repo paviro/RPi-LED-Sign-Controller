@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use once_cell::sync::Lazy;
 use log::{info};
 use rand::Rng;
-use crate::led_driver::{LedDriver, LedCanvas, create_driver};
+use crate::led_driver::{LedDriver, LedCanvas};
 use crate::embedded_graphics_support::EmbeddedGraphicsCanvas;
 use crate::config::DisplayConfig;
 
@@ -32,7 +32,7 @@ pub struct DisplayManager {
 }
 
 impl DisplayManager {
-    pub fn with_config(config: &DisplayConfig) -> Self {
+    pub fn with_config_and_driver(config: &DisplayConfig, driver: Box<dyn LedDriver>) -> Self {
         // Get display dimensions
         let display_width = config.display_width();
         let display_height = config.display_height();
@@ -40,10 +40,6 @@ impl DisplayManager {
         info!("Initializing display: {}x{} (rows={}, cols={}, chain={}, parallel={})",
               display_width, display_height, config.rows, config.cols, 
               config.chain_length, config.parallel);
-        
-        // Initialize the driver
-        let driver = create_driver(config)
-            .expect("Failed to initialize LED matrix driver");
         
         // Get the canvas from the driver
         let mut driver_box = driver;
@@ -69,7 +65,7 @@ impl DisplayManager {
         }
     }
 
-    pub fn with_playlist_and_config(playlist: Playlist, config: &DisplayConfig) -> Self {
+    pub fn with_playlist_config_and_driver(playlist: Playlist, config: &DisplayConfig, driver: Box<dyn LedDriver>) -> Self {
         // Get dimensions
         let display_width = config.display_width();
         let display_height = config.display_height();
@@ -77,10 +73,6 @@ impl DisplayManager {
         info!("Initializing display with playlist: {}x{} (rows={}, cols={}, chain={}, parallel={})",
               display_width, display_height, config.rows, config.cols, 
               config.chain_length, config.parallel);
-        
-        // Initialize the driver
-        let driver = create_driver(config)
-            .expect("Failed to initialize LED matrix driver");
         
         // Get the canvas from the driver
         let mut driver_box = driver;
@@ -579,7 +571,9 @@ impl DisplayManager {
     }
 }
 
-// Add this helper function for HSV to RGB conversion (outside the impl block)
+// Convert HSV (Hue, Saturation, Value) to RGB
+// h: 0.0-1.0 (hue), s: 0.0-1.0 (saturation), v: 0.0-1.0 (value)
+// Returns (r, g, b) as u8 values (0-255)
 fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
     let c = v * s;
     let x = c * (1.0 - ((h * 6.0) % 2.0 - 1.0).abs());

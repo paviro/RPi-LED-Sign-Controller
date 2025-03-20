@@ -36,14 +36,12 @@ pub enum DriverType {
 pub fn create_driver(config: &DisplayConfig) -> Result<Box<dyn LedDriver>, String> {
     match config.driver_type {
         DriverType::RpiLedPanel => {
-            log::debug!("Creating rpi-led-panel driver");
             match RpiLedPanelDriver::initialize(config) {
                 Ok(driver) => Ok(Box::new(driver)),
                 Err(e) => Err(e)
             }
         },
         DriverType::RpiLedMatrix => {
-            log::debug!("Creating rpi-led-matrix driver");
             match RpiLedMatrixDriver::initialize(config) {
                 Ok(driver) => Ok(Box::new(driver)),
                 Err(e) => Err(e)

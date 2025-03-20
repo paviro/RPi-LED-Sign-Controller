@@ -7,7 +7,11 @@ mod storage_manager;
 mod led_driver;
 mod embedded_graphics_support;
 mod config;
+mod privilege;
+
 use crate::app_storage::{create_storage};
+use crate::led_driver::create_driver;
+use crate::privilege::{check_root_privileges, drop_privileges};
 
 use axum::{
     routing::{post, get},
@@ -41,16 +45,16 @@ async fn main() {
                 log::Level::Warn => record.level().to_string().yellow().bold(),
                 log::Level::Info => record.level().to_string().green(),
                 log::Level::Debug => record.level().to_string().blue(),
-                log::Level::Trace => record.level().to_string().white(),
+                log::Level::Trace => record.level().to_string().purple(),
             };
 
             // Apply appropriate colors to the message based on level
             let message = match record.level() {
                 log::Level::Error => record.args().to_string().red(),
                 log::Level::Warn => record.args().to_string().yellow(),
-                log::Level::Info => record.args().to_string().green(),
-                log::Level::Debug => record.args().to_string().normal(),
-                log::Level::Trace => record.args().to_string().normal(),
+                log::Level::Info => record.args().to_string().normal(),
+                log::Level::Debug => record.args().to_string().blue(),
+                log::Level::Trace => record.args().to_string().purple(),
             };
 
             writeln!(
@@ -67,6 +71,12 @@ async fn main() {
     
     info!("Starting LED Sign Controller");
     
+    // Check for root privileges before doing anything else
+    if let Err(e) = check_root_privileges() {
+        error!("{}", e);
+        std::process::exit(1);
+    }
+    
     // Set higher priority for the process if possible
     #[cfg(target_os = "linux")]
     unsafe {
@@ -74,10 +84,6 @@ async fn main() {
         debug!("Set process priority to -20");
     }
 
-    // Create storage with default path in home directory
-    let storage = create_storage(None);
-    debug!("Storage initialized");
-    
     // Initialize configuration
     let display_config = init_config();
     
@@ -89,7 +95,28 @@ async fn main() {
         std::process::exit(1);
     }
     
-    // Initialize display manager with persisted playlist and brightness if available
+    // After configuration validation, but before driver initialization
+    let storage = create_storage(None);
+
+    // Create the driver - this might drop privileges
+    info!("Initializing LED matrix driver (requires elevated privileges)");
+    let driver = match create_driver(&display_config) {
+        Ok(driver) => driver,
+        Err(e) => {
+            error!("Failed to initialize LED matrix driver: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    // Now drop privileges explicitly if the driver didn't do it
+    #[cfg(target_os = "linux")]
+    {
+        if let Err(e) = drop_privileges() {
+            error!("Failed to drop privileges: {}", e);
+        }
+    }
+    
+    // Initialize display manager with the pre-created driver
     let display = {
         let storage_guard = storage.lock().unwrap();
         let persisted_playlist = storage_guard.load_playlist();
@@ -97,10 +124,10 @@ async fn main() {
         
         let mut display_manager = if let Some(playlist) = persisted_playlist {
             info!("Loaded playlist from filesystem with {} items", playlist.items.len());
-            DisplayManager::with_playlist_and_config(playlist, &display_config)
+            DisplayManager::with_playlist_config_and_driver(playlist, &display_config, driver)
         } else {
             info!("No saved playlist found, using default");
-            DisplayManager::with_config(&display_config)
+            DisplayManager::with_config_and_driver(&display_config, driver)
         };
         
         // Apply the saved brightness if available

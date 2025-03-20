@@ -10,7 +10,6 @@ pub struct AppStorage {
 
 impl AppStorage {
     pub fn new(storage_manager: StorageManager) -> Self {
-        debug!("Initializing AppStorage");
         Self { storage_manager }
     }
 
@@ -139,8 +138,6 @@ impl AppStorage {
 pub type SharedStorage = Arc<Mutex<AppStorage>>;
 
 pub fn create_storage(custom_dir: Option<String>) -> SharedStorage {
-    info!("Creating application storage system");
-    
     // Create the storage manager with the specified directory
     let storage_manager = StorageManager::new(custom_dir);
     

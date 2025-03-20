@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::any::Any;
-use log::{error, warn};
+use log::{error, warn, debug};
 use rpi_led_matrix::{LedMatrix, LedMatrixOptions, LedCanvas as RpiCanvas, 
                       LedColor, LedRuntimeOptions};
 
@@ -52,7 +52,7 @@ impl LedCanvas for RpiLedMatrixCanvas {
     }
 }
 
-// Simplest possible implementation that follows the example code EXACTLY
+// Implementation based on the reference example code
 pub struct RpiLedMatrixDriver {
     matrix: LedMatrix,
     width: i32,
@@ -83,6 +83,8 @@ impl LedDriver for RpiLedMatrixDriver {
         // Create options same as before
         let options = MatrixOptions::from_config(config);
         let (matrix_options, rt_options) = Self::create_matrix_options(&options)?;
+
+        debug!("Initializing C++ binding driver with options: {:?}", options);
         
         match LedMatrix::new(Some(matrix_options), Some(rt_options)) {
             Ok(matrix) => {
@@ -199,6 +201,11 @@ impl RpiLedMatrixDriver {
         if let Some(slowdown) = options.gpio_slowdown {
             rt_options.set_gpio_slowdown(slowdown);
         }
+
+        // Disable privilege dropping in the runtime options 
+        // We'll handle this consistently at the application level
+        // NOTE: Seems like the driver is ignoring this option
+        rt_options.set_drop_privileges(false);
         
         // Apply PWM bits (with error handling)
         if let Err(e) = matrix_options.set_pwm_bits(options.pwm_bits) {
@@ -253,9 +260,6 @@ impl RpiLedMatrixDriver {
         if options.limit_refresh_rate > 0 {
             matrix_options.set_limit_refresh(options.limit_refresh_rate);
         }
-        
-        // Runtime options: set reasonable defaults
-        rt_options.set_drop_privileges(true); // Drop privileges after initialization
         
         // Check for driver-specific unsupported options
         if let Some(chip) = &options.pi_chip {
