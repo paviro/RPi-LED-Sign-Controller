@@ -172,19 +172,7 @@ impl RpiLedPanelDriver {
         config.dither_bits = options.dither_bits;
         
         // Convert hardware mapping
-        config.hardware_mapping = match options.hardware_mapping.to_lowercase().as_str() {
-            "regular" => HardwareMapping::regular(),
-            "adafruit-hat" | "adafruithat" => HardwareMapping::adafruit_hat(),
-            "adafruit-hat-pwm" | "adafruithatpwm" => HardwareMapping::adafruit_hat_pwm(),
-            "regular-pi1" => HardwareMapping::regular_pi1(),
-            "classic" => HardwareMapping::classic(),
-            "classic-pi1" => HardwareMapping::classic_pi1(),
-            mapping => {
-                warn!("Unsupported hardware mapping '{}' for native driver, defaulting to 'regular'", mapping);
-                unsupported_options.push(format!("hardware_mapping={}", mapping));
-                HardwareMapping::regular()
-            }
-        };
+        config.hardware_mapping = Self::map_hardware_mapping(&options.hardware_mapping)?;
         
         // Convert LED sequence
         config.led_sequence = match options.led_sequence.to_uppercase().as_str() {
@@ -238,7 +226,7 @@ impl RpiLedPanelDriver {
         }
         
         // Convert row address setter
-        config.row_setter = Self::map_row_setter(&options.row_setter);
+        config.row_setter = Self::map_row_setter(&options.row_setter)?;
         
         // Apply pixel mapper if specified - just warn and add to unsupported options
         if let Some(mappers) = &options.pixel_mapper {
@@ -267,7 +255,7 @@ impl RpiLedPanelDriver {
         // Check if we encountered any unsupported options
         if !unsupported_options.is_empty() {
             return Err(format!(
-                "The following options are not supported by the native driver: {}",
+                "The following options are not supported by the native driver: {}", 
                 unsupported_options.join(", ")
             ));
         }
@@ -303,17 +291,27 @@ impl RpiLedPanelDriver {
     }
     
     // Helper to map row setter strings to enum values
-    fn map_row_setter(row_setter: &str) -> RowAddressSetterType {
-        match row_setter.to_lowercase().as_str() {
-            "direct" => RowAddressSetterType::Direct,
-            "shift-register" | "shiftregister" => RowAddressSetterType::ShiftRegister,
-            "direct-abcd" | "directabcdline" => RowAddressSetterType::DirectABCDLine,
-            "abc-shift-register" | "abcshiftregister" => RowAddressSetterType::ABCShiftRegister,
-            "sm5266" => RowAddressSetterType::SM5266,
-            _ => {
-                warn!("Unknown row address setter '{}', using direct", row_setter);
-                RowAddressSetterType::Direct
-            }
+    fn map_row_setter(row_setter_str: &str) -> Result<RowAddressSetterType, String> {
+        match row_setter_str.to_lowercase().as_str() {
+            "direct" | "default" => Ok(RowAddressSetterType::Direct),
+            "shiftregister" | "ab-addressed" => Ok(RowAddressSetterType::ShiftRegister),
+            "directabcdline" | "direct-row-select" => Ok(RowAddressSetterType::DirectABCDLine),
+            "abcshiftregister" | "abc-addressed" => Ok(RowAddressSetterType::ABCShiftRegister),
+            "sm5266" | "abc-shift-de" => Ok(RowAddressSetterType::SM5266),
+            _ => Err(format!("Unknown row address setter type: {}", row_setter_str))
+        }
+    }
+
+    // Helper to map hardware mapping strings to enum values
+    fn map_hardware_mapping(mapping: &str) -> Result<HardwareMapping, String> {
+        match mapping.to_lowercase().as_str() {
+            "regular" => Ok(HardwareMapping::regular()),
+            "adafruit-hat" | "adafruithat" => Ok(HardwareMapping::adafruit_hat()),
+            "adafruit-hat-pwm" | "adafruithatpwm" => Ok(HardwareMapping::adafruit_hat_pwm()),
+            "regular-pi1" | "regularpi1" => Ok(HardwareMapping::regular_pi1()),
+            "classic" => Ok(HardwareMapping::classic()),
+            "classic-pi1" | "classicpi1" => Ok(HardwareMapping::classic_pi1()),
+            _ => Err(format!("Unknown hardware mapping: {}", mapping))
         }
     }
 } 

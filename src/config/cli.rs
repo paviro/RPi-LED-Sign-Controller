@@ -80,8 +80,11 @@ pub struct CliArgs {
     /// (e.g. "U-mapper;Rotate:90") [native, binding]
     pub pixel_mapper: Option<String>,
     
-    #[argh(option, default = "String::from(\"default\")")]
-    /// row address setter type. Default: "default" [native, binding]
+    #[argh(option, default = "String::from(\"direct\")")]
+    /// row address setter type. Default: "direct" [native, binding]
+    /// Valid options: "direct"/"default", "shiftregister"/"ab-addressed", 
+    /// "directabcdline"/"direct-row-select", "abcshiftregister"/"abc-addressed",
+    /// "sm5266"/"abc-shift-de"
     pub row_setter: String,
     
     #[argh(option, default = "String::from(\"RGB\")")]

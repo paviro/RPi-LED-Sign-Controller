@@ -179,7 +179,7 @@ impl RpiLedMatrixDriver {
         }
         
         // Apply hardware mapping
-        matrix_options.set_hardware_mapping(&options.hardware_mapping);
+        matrix_options.set_hardware_mapping(&Self::map_hardware_mapping(&options.hardware_mapping));
         
         // Apply GPIO slowdown if specified
         if let Some(slowdown) = options.gpio_slowdown {
@@ -251,7 +251,7 @@ impl RpiLedMatrixDriver {
         // Check if we encountered any unsupported options
         if !unsupported_options.is_empty() {
             return Err(format!(
-                "The following options are not supported by the binding driver: {}",
+                "The following options are not supported by the binding driver: {}", 
                 unsupported_options.join(", ")
             ));
         }
@@ -289,14 +289,33 @@ impl RpiLedMatrixDriver {
     // Helper to map row setter string to numeric value 
     fn map_row_setter(row_setter: &str) -> u32 {
         match row_setter.to_lowercase().as_str() {
-            "default" => 0,
-            "ab-addressed" => 1,
-            "direct" => 2,
-            "abc-addressed" => 3,
-            "abc-shift-de" => 4,
+            "direct" | "default" => 0,
+            "shiftregister" | "ab-addressed" => 1,
+            "directabcdline" | "direct-row-select" => 2,
+            "abcshiftregister" | "abc-addressed" => 3,
+            "sm5266" | "abc-shift-de" => 4,
             _ => {
-                warn!("Unknown row address setter '{}' for binding driver, using default", row_setter);
-                0 // Default to 0 for unknown values
+                warn!("Unknown row address setter '{}' for binding driver, using default (Direct)", row_setter);
+                0 // Default to Direct (0) for unknown values
+            }
+        }
+    }
+
+    // Make sure the hardware_mapping string is case-insensitive and accepts both styles
+    fn map_hardware_mapping(mapping: &str) -> &str {
+        // Normalize to lowercase for case-insensitive comparison
+        let mapping_lower = mapping.to_lowercase();
+        
+        match mapping_lower.as_str() {
+            "regular" => "regular",
+            "adafruit-hat" | "adafruithat" => "adafruit-hat",
+            "adafruit-hat-pwm" | "adafruithatpwm" => "adafruit-hat-pwm",
+            "regular-pi1" | "regularpi1" => "regular-pi1",
+            "classic" => "classic",
+            "classic-pi1" | "classicpi1" => "classic-pi1",
+            _ => {
+                warn!("Unknown hardware mapping '{}', using 'regular'", mapping);
+                "regular"
             }
         }
     }
