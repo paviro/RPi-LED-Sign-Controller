@@ -71,12 +71,13 @@ The application supports two different LED matrix drivers:
 | `--panel-type` | Option | Panel initialization type (e.g., "FM6126A") | - | Both |
 | `--multiplexing` | Option | Multiplexing type | - | Both |
 | `--pixel-mapper` | Option | List of pixel mappers ("U-mapper;Rotate:90") | - | Both |
-| `--row-setter` | Option | Row address setter type | "default" | Both |
+| `--row-setter` | Option | Row address setter type | "direct" | Both |
 | `--led-sequence` | Option | LED color sequence | "RGB" | Both |
 | `--interlaced` | Switch | Enable interlaced scan mode | Disabled | Both |
 | `--no-hardware-pulse` | Switch | Disable hardware pin-pulse generation | Disabled | Binding |
 | `--show-refresh` | Switch | Show refresh rate on terminal | Disabled | Binding |
 | `--inverse-colors` | Switch | Invert display colors | Disabled | Binding |
+
 
 ## Environment Variables
 
@@ -108,37 +109,59 @@ All CLI options can be set via environment variables with the `LED_` prefix.
 
 ## Hardware Mapping Options
 
-The `--hardware-mapping` parameter depends on how your LED matrix is connected to the Raspberry Pi. Common values include:
+The `--hardware-mapping` parameter depends on how your LED matrix is connected to the Raspberry Pi.
 
-- `regular`: Standard GPIO mapping 
-- `adafruit-hat`: Adafruit RGB Matrix Bonnet/HAT
-- `adafruit-hat-pwm`: Adafruit RGB Matrix Bonnet/HAT with hardware PWM
-- `regular-pi1`: Standard GPIO mapping for Raspberry Pi 1
-- `classic`: Early version of matrix wiring
-- `classic-pi1`: Early version for Pi 1
+| Mapping Value | Alternate Names | Description | Driver Support |
+|---------------|----------------|-------------|----------------|
+| `regular` | | Standard GPIO mapping (default) | Both |
+| `adafruit-hat` | `AdafruitHat` | Adafruit RGB Matrix Bonnet/HAT | Both |
+| `adafruit-hat-pwm` | `AdafruitHatPwm` | Adafruit RGB Matrix Bonnet/HAT with hardware PWM | Both |
+| `regular-pi1` | `RegularPi1` | Standard GPIO mapping for Raspberry Pi 1 | Both |
+| `classic` | | Early version of matrix wiring (not recommended for new setups) | Both |
+| `classic-pi1` | `ClassicPi1` | Early version for Pi 1 Rev A | Both |
+
+Both kebab-case (`adafruit-hat`) and PascalCase (`AdafruitHat`) naming styles are supported for backward compatibility with both drivers.
+
+## Row Setter Options
+
+The `--row-setter` parameter controls how the row address is set on the LED matrix. The following options are supported:
+
+| Option Value | Alternate Name | Description |
+|--------------|----------------|-------------|
+| `direct` | `default` | Direct row selection (default) |
+| `shiftregister` | `ab-addressed` | Shift register selection (AB addressed panels) |
+| `directabcdline` | `direct-row-select` | Direct ABCD line selection |
+| `abcshiftregister` | `abc-addressed` | ABC shift register selection |
+| `sm5266` | `abc-shift-de` | SM5266 with ABC shifter + DE direct |
+
+The row setter determines how the GPIO pins are configured to address different rows on the LED panel. The correct value depends on your specific LED panel type and wiring configuration.
 
 ## Multiplexing Options
 
-The following options are available for the `--multiplexing` parameter:
+The `--multiplexing` parameter determines how the display is electrically multiplexed.
 
-- `Stripe` - Traditional line-by-line multiplexing
-- `Checkered` - Alternate pixels are on different scan lines
-- `Spiral` - Panel using spiral of matrix segments
-- `ZStripe08` - Z-stripe with 8 pixel intervals
-- `ZStripe44` - Z-stripe with 4x4 pixel intervals 
-- `ZStripe80` - Z-stripe with 8x0 pixel intervals
-- `Coreman` - Multiplexing used in some Colorlight controllers
-- `Kaler2Scan` - Scan pattern used in some Kaler panels
-- `P10Z` - P10 outdoor panels with Z layout
-- `QiangLiQ8` - QiangLi Q8 panels
-- `InversedZStripe` - Inverted Z-stripe pattern
-- `P10Outdoor1R1G1B1` - P10 outdoor panel variant 1
-- `P10Outdoor1R1G1B2` - P10 outdoor panel variant 2
-- `P10Outdoor1R1G1B3` - P10 outdoor panel variant 3
-- `P10Coreman` - P10 panels with Coreman multiplexing
-- `P8Outdoor1R1G1B` - P8 outdoor panels
-- `FlippedStripe` - Stripe pattern with flipped orientation
-- `P10Outdoor32x16HalfScan` - P10 32x16 outdoor panels with half-scan
+| Multiplexing Value | Description |
+|--------------------|-------------|
+| `Stripe` | Traditional line-by-line multiplexing (default for binding driver) |
+| `Checkered`, `Checker` | Alternate pixels are on different scan lines |
+| `Spiral` | Panel using spiral of matrix segments |
+| `ZStripe`, `ZStripe08` | Z-stripe with 8 pixel intervals |
+| `ZStripe44` | Z-stripe with 4x4 pixel intervals |
+| `ZStripe80` | Z-stripe with 8x0 pixel intervals |
+| `Coreman` | Multiplexing used in some Colorlight controllers |
+| `Kaler2Scan` | Scan pattern used in some Kaler panels |
+| `P10Z` | P10 outdoor panels with Z layout |
+| `QiangLiQ8` | QiangLi Q8 panels |
+| `InversedZStripe` | Inverted Z-stripe pattern |
+| `P10Outdoor1R1G1B1` | P10 outdoor panel variant 1 |
+| `P10Outdoor1R1G1B2` | P10 outdoor panel variant 2 |
+| `P10Outdoor1R1G1B3` | P10 outdoor panel variant 3 |
+| `P10Coreman` | P10 panels with Coreman multiplexing |
+| `P8Outdoor1R1G1B` | P8 outdoor panels |
+| `FlippedStripe` | Stripe pattern with flipped orientation |
+| `P10Outdoor32x16HalfScan` | P10 32x16 outdoor panels with half-scan |
+
+The correct multiplexing option depends on your specific panel type. Most common panels use either `Stripe` or `Checkered`.
 
 ## CLI Usage Notes
 
