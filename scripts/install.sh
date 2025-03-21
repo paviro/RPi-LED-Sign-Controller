@@ -421,13 +421,26 @@ if [ $FRONTEND_REBUILD_NEEDED -eq 1 ] || [ $BACKEND_UPDATES_AVAILABLE -eq 1 ] ||
     
     echo -e "${GREEN}Frontend built successfully.${NC}"
     
-    # Make sure static directory exists
+    # Ensure static directory exists
     mkdir -p "$REPO_DIR/static"
+    
+    # Clean the static directory to remove any old files
+    echo -e "${YELLOW}Cleaning static directory...${NC}"
+    rm -rf "$REPO_DIR/static/"*
+    echo -e "${GREEN}Static directory cleaned.${NC}"
     
     # Copy the built files to the backend's static folder
     echo -e "${YELLOW}Copying frontend files to backend...${NC}"
     cp -r "$FRONTEND_REPO_DIR/out/"* "$REPO_DIR/static/"
     echo -e "${GREEN}Frontend files copied successfully.${NC}"
+    
+    # Force rebuilding backend if we rebuilt frontend
+    # This is necessary because frontend files get embedded in the backend binary
+    if [ $BACKEND_UPDATES_AVAILABLE -eq 0 ]; then
+        echo -e "${YELLOW}Frontend was updated. Marking backend for rebuild...${NC}"
+        echo "updated=$(date +%s)" > "$REPO_DIR/.update_status"
+        chown $ACTUAL_USER:$ACTUAL_USER "$REPO_DIR/.update_status"
+    fi
 else
     echo -e "${GREEN}Skipping frontend build as files already exist and no updates were found.${NC}"
 fi
@@ -465,6 +478,14 @@ if [ "$BACKEND_UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign
     # After binary update section
     if [ -f "/etc/systemd/system/rpi-led-sign.service" ] && [ "$BACKEND_UPDATES_AVAILABLE" -eq 1 -o "$FRONTEND_UPDATES_AVAILABLE" -eq 1 ]; then
         if ! ask_reconfigure "update"; then
+            # Make sure service is running before exit
+            if systemctl is-active --quiet rpi-led-sign.service; then
+                echo -e "${GREEN}Service is already running.${NC}"
+            else
+                echo -e "${YELLOW}Starting service before exit...${NC}"
+                systemctl start rpi-led-sign.service
+                echo -e "${GREEN}Service started successfully.${NC}"
+            fi
             exit 0
         fi
         # Continue with configuration
@@ -474,6 +495,14 @@ fi
 # Check if we need to ask for reconfiguration when there were no updates or it's a fresh install
 if [ $APP_INSTALLED -eq 1 ] && [ $BACKEND_UPDATES_AVAILABLE -eq 0 ] && [ $FRONTEND_UPDATES_AVAILABLE -eq 0 ]; then
     if ! ask_reconfigure "no_update"; then
+        # Make sure service is running before exit
+        if systemctl is-active --quiet rpi-led-sign.service; then
+            echo -e "${GREEN}Service is already running.${NC}"
+        else
+            echo -e "${YELLOW}Starting service before exit...${NC}"
+            systemctl start rpi-led-sign.service
+            echo -e "${GREEN}Service started successfully.${NC}"
+        fi
         exit 0
     fi
     # Continue with configuration
