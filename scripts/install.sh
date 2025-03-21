@@ -112,6 +112,13 @@ ask_reconfigure() {
             echo -e "${GREEN}Service restarted successfully.${NC}"
         else
             echo -e "${GREEN}No changes needed. Your installation will continue to use the existing settings.${NC}"
+            
+            # In "no_update" case, make sure service is running
+            if ! systemctl is-active --quiet rpi-led-sign.service; then
+                echo -e "${YELLOW}Starting service...${NC}"
+                systemctl start rpi-led-sign.service
+                echo -e "${GREEN}Service started successfully.${NC}"
+            fi
         fi
         
         # Display common completion information
