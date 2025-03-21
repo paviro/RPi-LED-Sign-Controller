@@ -394,13 +394,17 @@ else
     FRONTEND_REBUILD_NEEDED=1
 fi
 
-# After checking for frontend updates, add this check for existing compiled frontend
-
-# Check if frontend has already been compiled and copied
+# Check if frontend has already been compiled and copied - with improved detection for deleted files
 FRONTEND_FILES_EXIST=0
-if [ -d "$REPO_DIR/static/_next" ]; then
+if [ -d "$REPO_DIR/static" ] && [ -d "$REPO_DIR/static/_next" ] && [ "$(ls -A "$REPO_DIR/static" 2>/dev/null)" ]; then
+    # Check if the static directory has actual content and wasn't emptied by an update
     echo -e "${GREEN}Frontend files already exist in backend static directory.${NC}"
     FRONTEND_FILES_EXIST=1
+else
+    # Static directory doesn't exist, is empty, or doesn't have the Next.js build files
+    echo -e "${YELLOW}Frontend files missing or incomplete in backend static directory.${NC}"
+    # Force rebuild of frontend
+    FRONTEND_REBUILD_NEEDED=1
 fi
 
 # Build the frontend if needed or if backend was updated or if frontend files don't exist
