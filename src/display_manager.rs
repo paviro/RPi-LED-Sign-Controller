@@ -13,6 +13,7 @@ use rand::Rng;
 use crate::led_driver::{LedDriver, LedCanvas};
 use crate::embedded_graphics_support::EmbeddedGraphicsCanvas;
 use crate::config::DisplayConfig;
+use uuid::Uuid;
 
 // Structure to manage our LED matrix state
 pub struct DisplayManager {
@@ -108,6 +109,7 @@ impl DisplayManager {
                 let ip = get_local_ip().unwrap_or_else(|| "localhost".to_string());
                 
                 DisplayContent {
+                    id: Uuid::new_v4().to_string(),
                     content_type: ContentType::Text,
                     text: format!("LED Matrix Controller | Web interface: http://{}:3000 | Use web UI to configure display", ip),
                     scroll: true,

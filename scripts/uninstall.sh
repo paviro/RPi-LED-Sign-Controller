@@ -203,6 +203,37 @@ else
     echo -e "${BLUE}Skipping system cleanup.${NC}"
 fi
 
+# Remove frontend source code
+FRONTEND_REPO_DIR="/usr/local/src/rpi-led-sign-controller-frontend"
+if [ -d "$FRONTEND_REPO_DIR" ]; then
+    echo -e "${YELLOW}Found frontend source code at $FRONTEND_REPO_DIR${NC}"
+    REMOVE_FRONTEND=$(get_yes_no "Do you want to remove the frontend source code?" "y")
+    
+    if [ "$REMOVE_FRONTEND" -eq 1 ]; then
+        echo -e "${YELLOW}Removing frontend source code...${NC}"
+        rm -rf $FRONTEND_REPO_DIR
+        echo -e "${GREEN}Frontend source code removed.${NC}"
+    else
+        echo -e "${BLUE}Frontend source code kept at $FRONTEND_REPO_DIR${NC}"
+    fi
+fi
+
+# Ask about uninstalling Node.js
+echo -e "\n${BLUE}Node.js Uninstallation${NC}"
+if command -v node &> /dev/null && command -v npm &> /dev/null; then
+    REMOVE_NODE=$(get_yes_no "Do you want to uninstall Node.js?" "n")
+    
+    if [ "$REMOVE_NODE" -eq 1 ]; then
+        echo -e "${YELLOW}Uninstalling Node.js...${NC}"
+        apt-get remove -y nodejs npm
+        echo -e "${GREEN}Node.js uninstalled successfully.${NC}"
+    else
+        echo -e "${BLUE}Keeping Node.js installation.${NC}"
+    fi
+else
+    echo -e "${GREEN}Node.js is not installed.${NC}"
+fi
+
 echo -e "\n${GREEN}Uninstallation complete!${NC}"
 echo -e "The RPi LED Sign Controller has been removed from your system."
 echo -e "For more information, visit: ${BLUE}https://github.com/paviro/rpi-led-sign-controller${NC}"

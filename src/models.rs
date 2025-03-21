@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+use serde::ser::{Serializer, SerializeMap};
 
 // Add a ContentType enum to models.rs
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -17,13 +19,14 @@ impl Default for ContentType {
 // Structure to hold display content configuration
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DisplayContent {
-    pub content_type: ContentType,  // New field for content type
+    pub id: String,             // New unique ID field
+    pub content_type: ContentType,
     pub text: String,
     pub scroll: bool,
-    pub color: (u8, u8, u8),       // Default text color
-    pub speed: f32,                // Pixels per second
-    pub duration: u64,             // Display duration in seconds (0 = indefinite)
-    pub repeat_count: u32,         // Number of times to repeat (0 = indefinite)
+    pub color: (u8, u8, u8),    // Default text color
+    pub speed: f32,             // Pixels per second
+    pub duration: u64,          // Display duration in seconds (0 = indefinite)
+    pub repeat_count: u32,      // Number of times to repeat (0 = indefinite)
     pub border_effect: Option<BorderEffect>, // Optional border effect
     pub colored_segments: Option<Vec<ColoredSegment>>, // New field for multi-colored text
 }
@@ -32,6 +35,7 @@ pub struct DisplayContent {
 impl Default for DisplayContent {
     fn default() -> Self {
         Self {
+            id: Uuid::new_v4().to_string(),
             content_type: ContentType::Text,
             text: String::new(),
             scroll: true,
@@ -46,7 +50,7 @@ impl Default for DisplayContent {
 }
 
 // New enum for available border effects
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Deserialize, Debug, PartialEq)]
 pub enum BorderEffect {
     None,
     Rainbow,
@@ -62,12 +66,16 @@ impl Default for BorderEffect {
     }
 }
 
-// New struct to represent a colored segment within the text
+// Updated structure to represent a colored segment within the text
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ColoredSegment {
+    // Original index-based fields kept for compatibility
     pub start: usize,  // Start index in the text
     pub end: usize,    // End index in the text (exclusive)
-    pub color: (u8, u8, u8), // RGB color for this segment
+    
+    // New fields for the API
+    pub text: Option<String>,  // The text segment content
+    pub color: (u8, u8, u8),   // RGB color for this segment
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -83,6 +91,55 @@ impl Default for Playlist {
             items: vec![],  // Start with an empty playlist
             active_index: 0,
             repeat: true,
+        }
+    }
+}
+
+// New structure for reordering request
+#[derive(Deserialize)]
+pub struct ReorderRequest {
+    pub item_ids: Vec<String>,
+}
+
+// New structure for brightness settings
+#[derive(Serialize, Deserialize)]
+pub struct BrightnessSettings {
+    pub brightness: u8,
+}
+
+impl Serialize for BorderEffect {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            // Simple variants get serialized as {"Variant": null}
+            BorderEffect::None => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("None", &Option::<()>::None)?;
+                map.end()
+            },
+            BorderEffect::Rainbow => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("Rainbow", &Option::<()>::None)?;
+                map.end()
+            },
+            // Complex variants continue using the default serialization
+            BorderEffect::Pulse { colors } => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("Pulse", &serde_json::json!({"colors": colors}))?;
+                map.end()
+            },
+            BorderEffect::Sparkle { colors } => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("Sparkle", &serde_json::json!({"colors": colors}))?;
+                map.end()
+            },
+            BorderEffect::Gradient { colors } => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("Gradient", &serde_json::json!({"colors": colors}))?;
+                map.end()
+            },
         }
     }
 }

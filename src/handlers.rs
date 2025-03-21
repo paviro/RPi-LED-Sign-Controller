@@ -1,48 +1,206 @@
 use axum::{
-    extract::State,
-    response::{Json, Html},
-    http::StatusCode,
+    extract::{State, Path, Request},
+    response::{Json, Html, IntoResponse},
+    http::{header, StatusCode},
 };
-use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::{Duration, Instant}};
 use tokio::sync::Mutex;
-use log::{info, error, debug};
+use log::{info, error, debug, warn};
+use uuid::Uuid;
+use crate::static_assets::StaticAssets;
+use mime_guess;
 
 use crate::{
     display_manager::DisplayManager,
-    models::Playlist,
-    static_assets::StaticAssets,
+    models::{DisplayContent, BrightnessSettings, ReorderRequest},
     app_storage::SharedStorage,
 };
 
-#[derive(Serialize, Deserialize)]
-pub struct BrightnessSettings {
-    pub brightness: u8,
+// Type alias for our application state
+type AppState = (Arc<Mutex<DisplayManager>>, SharedStorage);
+
+// Handler for getting all playlist items
+pub async fn get_playlist_items(
+    State((display, _)): State<AppState>,
+) -> Json<Vec<DisplayContent>> {
+    debug!("Getting all playlist items");
+    let display = display.lock().await;
+    Json(display.playlist.items.clone())
 }
 
-// Handler for updating the playlist
-pub async fn update_playlist(
-    State((display, storage)): State<(Arc<Mutex<DisplayManager>>, SharedStorage)>,
-    Json(playlist): Json<Playlist>,
-) -> StatusCode {
-    debug!("Updating display with playlist containing {} items", playlist.items.len());
+// Handler for creating a new playlist item
+pub async fn create_playlist_item(
+    State((display, storage)): State<AppState>,
+    Json(mut item): Json<DisplayContent>,
+) -> (StatusCode, Json<DisplayContent>) {
+    debug!("Creating new playlist item");
     
-    let mut display = display.lock().await;
-    
-    // Update the display
-    display.playlist = playlist.clone();
-    display.last_transition = Instant::now();
-    display.current_repeat = 0;
-    display.completed_scrolls = 0;
-    display.scroll_position = display.display_width;
-    
-    // Save playlist to storage
-    let storage_guard = storage.lock().unwrap();
-    if !storage_guard.save_playlist(&playlist) {
-        error!("Failed to save playlist to storage");
+    // Ensure the item has a unique ID
+    if item.id.is_empty() {
+        item.id = Uuid::new_v4().to_string();
     }
     
-    StatusCode::OK
+    let mut display_guard = display.lock().await;
+    display_guard.playlist.items.push(item.clone());
+    
+    // Save updated playlist
+    let storage_guard = storage.lock().unwrap();
+    if !storage_guard.save_playlist(&display_guard.playlist) {
+        error!("Failed to save playlist after adding new item");
+    }
+    
+    (StatusCode::CREATED, Json(item))
+}
+
+// Handler for getting a specific playlist item
+pub async fn get_playlist_item(
+    State((display, _)): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<DisplayContent>, StatusCode> {
+    debug!("Getting playlist item with ID: {}", id);
+    
+    let display_guard = display.lock().await;
+    
+    // Find the item with the given ID
+    if let Some(item) = display_guard.playlist.items.iter().find(|item| item.id == id) {
+        Ok(Json(item.clone()))
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
+}
+
+// Handler for updating a specific playlist item
+pub async fn update_playlist_item(
+    State((display, storage)): State<AppState>,
+    Path(id): Path<String>,
+    Json(updated_item): Json<DisplayContent>,
+) -> Result<StatusCode, StatusCode> {
+    debug!("Updating playlist item with ID: {}", id);
+    
+    let mut display_guard = display.lock().await;
+    
+    // Find the index of the item with the given ID
+    if let Some(index) = display_guard.playlist.items.iter().position(|item| item.id == id) {
+        // Make sure we keep the original ID
+        let mut item_to_update = updated_item;
+        item_to_update.id = id;
+        
+        // Update the item
+        display_guard.playlist.items[index] = item_to_update;
+        
+        // Save updated playlist
+        let storage_guard = storage.lock().unwrap();
+        if !storage_guard.save_playlist(&display_guard.playlist) {
+            error!("Failed to save playlist after updating item");
+        }
+        
+        // Reset display state if currently showing this item
+        if display_guard.playlist.active_index == index {
+            display_guard.reset_display_state();
+        }
+        
+        Ok(StatusCode::OK)
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
+}
+
+// Handler for deleting a specific playlist item
+pub async fn delete_playlist_item(
+    State((display, storage)): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, StatusCode> {
+    debug!("Deleting playlist item with ID: {}", id);
+    
+    let mut display_guard = display.lock().await;
+    
+    // Find the index of the item with the given ID
+    if let Some(index) = display_guard.playlist.items.iter().position(|item| item.id == id) {
+        // Remove the item
+        display_guard.playlist.items.remove(index);
+        
+        // Adjust active_index if necessary
+        if !display_guard.playlist.items.is_empty() {
+            if display_guard.playlist.active_index >= index {
+                display_guard.playlist.active_index = 
+                    display_guard.playlist.active_index.saturating_sub(1);
+            }
+        } else {
+            display_guard.playlist.active_index = 0;
+        }
+        
+        // Save updated playlist
+        let storage_guard = storage.lock().unwrap();
+        if !storage_guard.save_playlist(&display_guard.playlist) {
+            error!("Failed to save playlist after deleting item");
+        }
+        
+        // Reset display state
+        display_guard.reset_display_state();
+        
+        Ok(StatusCode::OK)
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
+}
+
+// Handler for reordering playlist items
+pub async fn reorder_playlist_items(
+    State((display, storage)): State<AppState>,
+    Json(reorder_request): Json<ReorderRequest>,
+) -> Result<StatusCode, StatusCode> {
+    debug!("Reordering playlist items");
+    
+    let mut display_guard = display.lock().await;
+    
+    // Check if all requested IDs exist in the playlist
+    for id in &reorder_request.item_ids {
+        if !display_guard.playlist.items.iter().any(|item| &item.id == id) {
+            warn!("Reorder request contains unknown item ID: {}", id);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+    
+    // Check if the request contains all items
+    if reorder_request.item_ids.len() != display_guard.playlist.items.len() {
+        warn!("Reorder request doesn't match existing items count: {} vs {}", 
+              reorder_request.item_ids.len(), display_guard.playlist.items.len());
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    
+    // Create a new ordered list based on the requested order
+    let mut new_items: Vec<DisplayContent> = Vec::with_capacity(display_guard.playlist.items.len());
+    
+    for id in &reorder_request.item_ids {
+        if let Some(item) = display_guard.playlist.items.iter().find(|item| &item.id == id).cloned() {
+            new_items.push(item);
+        }
+    }
+    
+    // Replace the items with the new ordered list
+    display_guard.playlist.items = new_items;
+    
+    // Reset display state
+    display_guard.reset_display_state();
+    
+    // Save updated playlist
+    let storage_guard = storage.lock().unwrap();
+    if !storage_guard.save_playlist(&display_guard.playlist) {
+        error!("Failed to save playlist after reordering items");
+    }
+    
+    Ok(StatusCode::OK)
+}
+
+// Add this helper method to DisplayManager
+impl DisplayManager {
+    pub fn reset_display_state(&mut self) {
+        // Reset the display state to start fresh with current item
+        self.last_transition = Instant::now();
+        self.current_repeat = 0;
+        self.completed_scrolls = 0;
+        self.scroll_position = self.display_width;
+    }
 }
 
 // Background task to handle display updates
@@ -113,19 +271,17 @@ pub async fn display_loop(display: Arc<Mutex<DisplayManager>>) {
 pub async fn index_handler() -> Html<String> {
     let index_html = StaticAssets::get("index.html")
         .expect("index.html not found in embedded assets");
+    
+    // Convert the content to string
     let content = std::str::from_utf8(index_html.data.as_ref())
         .expect("Failed to convert index.html to UTF-8")
-        .to_string();  // Convert to owned String
+        .to_string();
     
-    Html(content)
-}
-
-// Add this new handler to get the current playlist
-pub async fn get_playlist(
-    State((display, _)): State<(Arc<Mutex<DisplayManager>>, SharedStorage)>,
-) -> Json<Playlist> {
-    let display = display.lock().await;
-    Json(display.playlist.clone())
+    // Process the content to fix paths if needed
+    // Note: This is a basic approach - you might need more sophisticated HTML parsing
+    let processed_content = content;
+    
+    Html(processed_content)
 }
 
 // Add this handler to serve the editor page
@@ -141,24 +297,13 @@ pub async fn editor_handler() -> Html<String> {
 
 // New handler to get the current brightness
 pub async fn get_brightness(
-    State((display, storage)): State<(Arc<Mutex<DisplayManager>>, SharedStorage)>,
+    State((display, _)): State<AppState>,
 ) -> Json<BrightnessSettings> {
     info!("Getting current brightness");
     let display = display.lock().await;
     
-    // First try to get from display manager
     let brightness = display.get_brightness();
     
-    // Also check if there's a saved brightness (for logging purposes)
-    let storage_guard = storage.lock().unwrap();
-    if let Some(saved_brightness) = storage_guard.load_brightness() {
-        if saved_brightness != brightness {
-            info!("Saved brightness ({}) differs from current brightness ({})", 
-                  saved_brightness, brightness);
-        }
-    }
-    
-    info!("Current brightness: {}", brightness);
     Json(BrightnessSettings {
         brightness
     })
@@ -166,7 +311,7 @@ pub async fn get_brightness(
 
 // Handler for updating brightness - applies brightness through color scaling
 pub async fn update_brightness(
-    State((display, storage)): State<(Arc<Mutex<DisplayManager>>, SharedStorage)>,
+    State((display, storage)): State<AppState>,
     Json(settings): Json<BrightnessSettings>,
 ) -> StatusCode {
     debug!("Updating brightness to {}", settings.brightness);
@@ -183,4 +328,59 @@ pub async fn update_brightness(
     }
     
     StatusCode::OK
+}
+
+// Add a function to serve files from the _next directory
+pub async fn next_assets_handler(req: Request) -> impl IntoResponse {
+    let path = req.uri().path().trim_start_matches("/_next");
+    let full_path = format!("_next{}", path);
+    
+    debug!("Serving next asset: {}", full_path);
+    
+    // Try to get the file from the embedded assets
+    match StaticAssets::get(&full_path) {
+        Some(content) => {
+            // Get MIME type
+            let content_type = mime_guess::from_path(&full_path)
+                .first_or_octet_stream()
+                .to_string();
+            
+            // Return file with appropriate content type
+            (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, content_type)],
+                content.data
+            ).into_response()
+        },
+        None => {
+            warn!("Next asset not found: {}", full_path);
+            StatusCode::NOT_FOUND.into_response()
+        }
+    }
+}
+
+// Similar to next_assets_handler
+pub async fn static_assets_handler(Path(path): Path<String>) -> impl IntoResponse {
+    let full_path = format!("static/{}", path);
+    
+    debug!("Serving static asset: {}", full_path);
+    
+    match StaticAssets::get(&path) {
+        Some(content) => {
+            // Get MIME type
+            let content_type = mime_guess::from_path(&path)
+                .first_or_octet_stream()
+                .to_string();
+            
+            (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, content_type)],
+                content.data
+            ).into_response()
+        },
+        None => {
+            warn!("Static asset not found: {}", path);
+            StatusCode::NOT_FOUND.into_response()
+        }
+    }
 } 

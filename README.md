@@ -42,6 +42,10 @@ This will download and run the installation script, which will check for an exis
 
 ### Building from Source
 
+First compile the frontend and copy output files into the `/static` dir. You can find the frontend [here](https://github.com/paviro/RPi-LED-Sign-Controller-Frontend).
+
+After that you can move on to the backend, the frontend files will be embedded in the final binary.
+
 ```bash
 # Clone the repository
 git clone https://github.com/paviro/rpi-led-sign-controller.git

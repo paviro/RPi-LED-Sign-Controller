@@ -14,13 +14,11 @@ use crate::led_driver::create_driver;
 use crate::privilege::{check_root_privileges, drop_privileges};
 
 use axum::{
-    routing::{post, get},
+    routing::{post, get, put, delete},
     Router,
 };
-use axum_embed::ServeEmbed;
-use static_assets::StaticAssets;
 use display_manager::DisplayManager;
-use handlers::{update_playlist, get_playlist, index_handler, editor_handler, display_loop, get_brightness, update_brightness};
+use handlers::{index_handler, editor_handler, display_loop, get_brightness, update_brightness, get_playlist_items, create_playlist_item, get_playlist_item, update_playlist_item, delete_playlist_item, reorder_playlist_items};
 use std::{sync::Arc, net::SocketAddr};
 use tokio::sync::Mutex;
 use log::{info, warn, error, debug, LevelFilter};
@@ -179,21 +177,27 @@ async fn main() {
     
     // API routes with shared storage
     let api_routes = Router::new()
-        .route("/playlist", post(update_playlist))
-        .route("/playlist", get(get_playlist))
-        .route("/brightness", get(get_brightness))
-        .route("/brightness", post(update_brightness))
+        // New RESTful playlist endpoints
+        .route("/api/playlist/items", get(get_playlist_items))
+        .route("/api/playlist/items", post(create_playlist_item))
+        .route("/api/playlist/items/:id", get(get_playlist_item))
+        .route("/api/playlist/items/:id", put(update_playlist_item))
+        .route("/api/playlist/items/:id", delete(delete_playlist_item))
+        .route("/api/playlist/reorder", put(reorder_playlist_items))
+        
+        // Settings endpoints
+        .route("/api/settings/brightness", get(get_brightness))
+        .route("/api/settings/brightness", put(update_brightness))
+        
         .with_state((display.clone(), storage));
     
-    // Static asset handler
-    let static_assets = ServeEmbed::<StaticAssets>::new();
-    
-    // Main router
+    // Simplified static assets setup
     let app = Router::new()
         .route("/", get(index_handler))
         .route("/editor", get(editor_handler))
-        .nest("", api_routes)
-        .nest_service("/static", static_assets);
+        .route("/_next/*path", get(handlers::next_assets_handler))
+        .route("/static/*path", get(handlers::static_assets_handler))
+        .nest("", api_routes);
     
     let ip_addr = display_config.interface.parse::<std::net::IpAddr>()
         .expect("Invalid network interface address");

@@ -21,12 +21,22 @@ echo -e "animations, and playlists on your LED panels."
 
 echo -e "\n${YELLOW}This script will:${NC}"
 echo -e "  • Check if the app is already installed and offer to update it"
-echo -e "  • Check for and install required dependencies (Git, Rust)"
+echo -e "  • Check for and install required dependencies (Git, Rust, Node.js)"
 echo -e "  • Clone the repository if needed"
 echo -e "  • Build the application from source"
 echo -e "  • Help you configure your LED panel"
 echo -e "  • Install the application as a systemd service"
 echo -e "  • Start the service automatically on boot"
+
+echo -e "\n${YELLOW}This script will make changes to your system.${NC}"
+echo -e "${YELLOW}Do you want to proceed with the installation/update?${NC}"
+
+read -p "Continue? [y/N]: " continue_install
+if [[ "$continue_install" != "y" && "$continue_install" != "Y" ]]; then
+    echo -e "${RED}Installation aborted.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}Proceeding with installation...${NC}"
 
 # First, add a helper function for standardized reading near the top of the script
 read_input() {
@@ -154,6 +164,16 @@ else
     echo -e "${GREEN}Git is already installed.${NC}"
 fi
 
+# Check for and install Node.js if necessary
+if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
+    echo -e "${YELLOW}Node.js not found. Installing Node.js...${NC}"
+    apt-get update
+    apt-get install -y nodejs npm
+    echo -e "${GREEN}Node.js installed successfully.${NC}"
+else
+    echo -e "${GREEN}Node.js is already installed.${NC}"
+fi
+
 # Check for and install rust if necessary
 if ! sudo -u $ACTUAL_USER bash -c "source $ACTUAL_HOME/.cargo/env 2>/dev/null && command -v rustc &> /dev/null && command -v cargo &> /dev/null"; then
     echo -e "${YELLOW}Rust not found. Installing rust for user $ACTUAL_USER...${NC}"
@@ -267,18 +287,159 @@ UPDATE_MARKER="$REPO_DIR/.update_status"
 # Record the project directory
 PROJECT_DIR=$(pwd)
 
+# Set frontend repository location
+FRONTEND_REPO_DIR="/usr/local/src/rpi-led-sign-controller-frontend"
+
+# Check if we're inside the backend repository
+INSIDE_BACKEND_REPO=0
+# Either we're directly in the repo dir
+if [ -f "Cargo.toml" ] && grep -q "rpi_led_sign_controller" "Cargo.toml" 2>/dev/null; then
+    INSIDE_BACKEND_REPO=1
+    REPO_DIR=$(pwd)
+    echo -e "${BLUE}Already in backend project directory.${NC}"
+# Or we're in the scripts subdirectory
+elif [ -f "../Cargo.toml" ] && grep -q "rpi_led_sign_controller" "../Cargo.toml" 2>/dev/null; then
+    INSIDE_BACKEND_REPO=1
+    REPO_DIR=$(cd .. && pwd)
+    echo -e "${BLUE}Already in backend project directory (scripts subfolder).${NC}"
+fi
+
+# Set standard repository location if not already inside repo
+if [ $INSIDE_BACKEND_REPO -eq 0 ]; then
+    REPO_DIR="/usr/local/src/rpi-led-sign-controller"
+fi
+
+# Now handle the frontend repository
+echo -e "${YELLOW}Checking for frontend repository...${NC}"
+FRONTEND_REPO_EXISTS=0
+if [ -d "$FRONTEND_REPO_DIR" ]; then
+    FRONTEND_REPO_EXISTS=1
+    echo -e "${GREEN}Frontend repository already exists at $FRONTEND_REPO_DIR${NC}"
+    
+    # Check if any files in the frontend repo have incorrect ownership
+    if [ "$(find "$FRONTEND_REPO_DIR" -not -user $ACTUAL_USER | wc -l)" -gt 0 ]; then
+        echo -e "${YELLOW}Fixing frontend repository permissions...${NC}"
+        chown -R $ACTUAL_USER:$ACTUAL_USER "$FRONTEND_REPO_DIR"
+        echo -e "${GREEN}Frontend repository permissions fixed.${NC}"
+    fi
+else
+    echo -e "${YELLOW}Frontend repository not found. Will clone it.${NC}"
+fi
+
+# Clone frontend repository if it doesn't exist
+if [ $FRONTEND_REPO_EXISTS -eq 0 ]; then
+    echo -e "${YELLOW}Creating frontend repository directory...${NC}"
+    mkdir -p "$FRONTEND_REPO_DIR"
+    chown $ACTUAL_USER:$ACTUAL_USER "$FRONTEND_REPO_DIR"
+    
+    echo -e "${YELLOW}Cloning frontend repository as user $ACTUAL_USER...${NC}"
+    # Clone the repository as the regular user
+    sudo -u $ACTUAL_USER git clone https://github.com/paviro/RPi-LED-Sign-Controller-Frontend.git "$FRONTEND_REPO_DIR"
+    echo -e "${GREEN}Frontend repository cloned successfully.${NC}"
+fi
+
+# Initialize update flags with default values
+BACKEND_UPDATES_AVAILABLE=0
+FRONTEND_UPDATES_AVAILABLE=0
+FRONTEND_REBUILD_NEEDED=0
+
+# Check for backend updates
+if [ $APP_INSTALLED -eq 1 ]; then
+    echo -e "${YELLOW}Fetching the latest changes from GitHub for backend...${NC}"
+    cd "$REPO_DIR"
+    sudo -u $ACTUAL_USER git fetch
+
+    # Now check if we're behind the remote repository
+    git_status=$(sudo -u $ACTUAL_USER git status -uno)
+    if echo "$git_status" | grep -q "Your branch is behind"; then
+        BACKEND_UPDATES_AVAILABLE=1
+        echo -e "${YELLOW}Backend updates are available.${NC}"
+        
+        # Pull changes as the regular user
+        sudo -u $ACTUAL_USER git pull
+        echo -e "${GREEN}Backend repository updated successfully.${NC}"
+    else
+        echo -e "${GREEN}Backend repository is already up to date.${NC}"
+    fi
+    
+    # Create update marker file for backend with proper ownership
+    if [ $BACKEND_UPDATES_AVAILABLE -eq 1 ]; then
+        echo "updated=$(date +%s)" > "$REPO_DIR/.update_status"
+        chown $ACTUAL_USER:$ACTUAL_USER "$REPO_DIR/.update_status"
+    fi
+fi
+
+# Check for frontend updates
+echo -e "${YELLOW}Checking for frontend updates...${NC}"
+
+# Only if frontend repo exists, check for updates
+if [ $FRONTEND_REPO_EXISTS -eq 1 ]; then
+    cd "$FRONTEND_REPO_DIR"
+    sudo -u $ACTUAL_USER git fetch
+    
+    git_status=$(sudo -u $ACTUAL_USER git status -uno)
+    if echo "$git_status" | grep -q "Your branch is behind"; then
+        FRONTEND_UPDATES_AVAILABLE=1
+        echo -e "${YELLOW}Frontend updates are available.${NC}"
+        
+        # Pull changes as the regular user
+        sudo -u $ACTUAL_USER git pull
+        echo -e "${GREEN}Frontend repository updated successfully.${NC}"
+        FRONTEND_REBUILD_NEEDED=1
+    else
+        echo -e "${GREEN}Frontend repository is already up to date.${NC}"
+    fi
+else
+    # If frontend was newly cloned, we need to build it
+    FRONTEND_REBUILD_NEEDED=1
+fi
+
+# After checking for frontend updates, add this check for existing compiled frontend
+
+# Check if frontend has already been compiled and copied
+FRONTEND_FILES_EXIST=0
+if [ -d "$REPO_DIR/static/_next" ]; then
+    echo -e "${GREEN}Frontend files already exist in backend static directory.${NC}"
+    FRONTEND_FILES_EXIST=1
+fi
+
+# Build the frontend if needed or if backend was updated or if frontend files don't exist
+if [ $FRONTEND_REBUILD_NEEDED -eq 1 ] || [ $BACKEND_UPDATES_AVAILABLE -eq 1 ] || [ $FRONTEND_FILES_EXIST -eq 0 ]; then
+    echo -e "${YELLOW}Building frontend...${NC}"
+    cd "$FRONTEND_REPO_DIR"
+    
+    # Install dependencies and build
+    echo -e "${YELLOW}Installing frontend dependencies...${NC}"
+    sudo -u $ACTUAL_USER npm install
+    
+    echo -e "${YELLOW}Building frontend...${NC}"
+    sudo -u $ACTUAL_USER npm run build
+    
+    echo -e "${GREEN}Frontend built successfully.${NC}"
+    
+    # Make sure static directory exists
+    mkdir -p "$REPO_DIR/static"
+    
+    # Copy the built files to the backend's static folder
+    echo -e "${YELLOW}Copying frontend files to backend...${NC}"
+    cp -r "$FRONTEND_REPO_DIR/out/"* "$REPO_DIR/static/"
+    echo -e "${GREEN}Frontend files copied successfully.${NC}"
+else
+    echo -e "${GREEN}Skipping frontend build as files already exist and no updates were found.${NC}"
+fi
+
 # Build the application if new installation, update pulled, or rebuild requested
-if [ "$UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_controller" ] || [ -f "$UPDATE_MARKER" ]; then
+if [ "$BACKEND_UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_controller" ] || [ -f "$REPO_DIR/.update_status" ]; then
     # Make sure we're in the repository directory
     if [ "$(pwd)" != "$REPO_DIR" ]; then
         echo -e "${YELLOW}Changing to repository directory for build...${NC}"
         cd "$REPO_DIR"
     fi
 
-    echo -e "${YELLOW}Building application...${NC}"
+    echo -e "${YELLOW}Building backend application...${NC}"
     # Use the user's cargo environment
     sudo -u $ACTUAL_USER bash -c "source $ACTUAL_HOME/.cargo/env && cargo build --release"
-    echo -e "${GREEN}Build completed.${NC}"
+    echo -e "${GREEN}Backend build completed.${NC}"
 
     # Stop the service before replacing the binary if it's running
     if [ -f "/etc/systemd/system/rpi-led-sign.service" ] && systemctl is-active --quiet rpi-led-sign.service; then
@@ -293,12 +454,12 @@ if [ "$UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_control
     echo -e "${GREEN}Binary installed.${NC}"
     
     # Remove update marker if it exists
-    if [ -f "$UPDATE_MARKER" ]; then
-        rm "$UPDATE_MARKER"
+    if [ -f "$REPO_DIR/.update_status" ]; then
+        rm "$REPO_DIR/.update_status"
     fi
-
+    
     # After binary update section
-    if [ -f "/etc/systemd/system/rpi-led-sign.service" ] && [ "$UPDATES_AVAILABLE" -eq 1 ]; then
+    if [ -f "/etc/systemd/system/rpi-led-sign.service" ] && [ "$BACKEND_UPDATES_AVAILABLE" -eq 1 -o "$FRONTEND_UPDATES_AVAILABLE" -eq 1 ]; then
         if ! ask_reconfigure "update"; then
             exit 0
         fi
@@ -306,12 +467,18 @@ if [ "$UPDATES_AVAILABLE" -eq 1 ] || [ ! -f "/usr/local/bin/rpi_led_sign_control
     fi
 fi
 
-# Separate if statement for no updates, not an elif
-if [ $APP_INSTALLED -eq 1 ] && [ $UPDATES_AVAILABLE -eq 0 ]; then
+# Check if we need to ask for reconfiguration when there were no updates or it's a fresh install
+if [ $APP_INSTALLED -eq 1 ] && [ $BACKEND_UPDATES_AVAILABLE -eq 0 ] && [ $FRONTEND_UPDATES_AVAILABLE -eq 0 ]; then
     if ! ask_reconfigure "no_update"; then
         exit 0
     fi
     # Continue with configuration
+fi
+
+# If it's a fresh installation, always ask to configure
+if [ $APP_INSTALLED -eq 0 ]; then
+    echo -e "${GREEN}Fresh installation completed. Now let's configure your LED panel.${NC}"
+    # Continue with configuration - no exit option here as configuration is required for first install
 fi
 
 ###########################################
