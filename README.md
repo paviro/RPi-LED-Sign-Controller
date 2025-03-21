@@ -1,15 +1,11 @@
+<div align="center">
+<img src="https://github.com/user-attachments/assets/a1dffcaf-3105-459d-9a94-baef4ccfc8fd" width=200>
+	
 # RPi LED Sign Controller
+######  LED matrix display controller for Raspberry Pi with web-based configuration.
 
-A LED matrix display controller for Raspberry Pi with web-based configuration. This application provides a flexible interface for controlling LED matrix panels through a web UI and supports multiple display drivers.
-
-<div style="display: flex; gap: 10px; justify-content: center; align-items: center;">
-
-  <img src="https://github.com/user-attachments/assets/565ccce9-e814-40f8-b08e-8e85194e1f89" alt="Playlist Manager" width="45%">
-  
-  <img src="https://github.com/user-attachments/assets/4979dadd-8e92-4b18-b548-a109d098f879" alt="Text Editor" width="45%">
 
 </div>
-
 
 ## Features
 
@@ -19,15 +15,7 @@ A LED matrix display controller for Raspberry Pi with web-based configuration. T
 - Two driver options: native Rust or C++ binding
 - Support for various LED matrix panel configurations
 
-## Installation
-
-### Prerequisites
-
-- Raspberry Pi (tested on Pi 4)
-- LED matrix panels compatible with the HUB75 interface
-- Rust toolchain (rustc, cargo) (if not using quick install)
-
-### Quick Install
+## Quick Install
 
 To quickly install or update the LED Sign Controller on your Raspberry Pi, you can use this installer:
 
@@ -39,6 +27,29 @@ sudo bash install.sh
 ```
 
 This will download and run the installation script, which will check for an existing installation, install/update dependencies, build the application, and help you configure your LED panel.
+
+
+## Screenshots
+
+### Playlist Manager
+
+<div align="left">
+  <img src="https://github.com/user-attachments/assets/954eea72-f67a-4603-b0e8-8d999f58529e" width=50%>
+</div>
+
+### Editor
+
+<div align="left">
+  <img src="https://github.com/user-attachments/assets/9995bb02-5345-4470-8f41-761f37b05a06" width=50%>
+</div>
+
+## Installation
+
+### Prerequisites
+
+- Raspberry Pi (tested on Pi 4)
+- LED matrix panels compatible with the HUB75 interface
+- Rust toolchain (rustc, cargo) (if not using quick install)
 
 ### Building from Source
 
