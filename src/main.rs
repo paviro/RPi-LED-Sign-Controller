@@ -18,7 +18,7 @@ use axum::{
     Router,
 };
 use display_manager::DisplayManager;
-use handlers::{index_handler, editor_handler, display_loop, get_brightness, update_brightness, get_playlist_items, create_playlist_item, get_playlist_item, update_playlist_item, delete_playlist_item, reorder_playlist_items};
+use handlers::{index_handler, display_loop, get_brightness, update_brightness, get_playlist_items, create_playlist_item, get_playlist_item, update_playlist_item, delete_playlist_item, reorder_playlist_items};
 use std::{sync::Arc, net::SocketAddr};
 use tokio::sync::Mutex;
 use log::{info, warn, error, debug, LevelFilter};
@@ -194,7 +194,6 @@ async fn main() {
     // Simplified static assets setup
     let app = Router::new()
         .route("/", get(index_handler))
-        .route("/editor", get(editor_handler))
         .route("/_next/*path", get(handlers::next_assets_handler))
         .route("/static/*path", get(handlers::static_assets_handler))
         .nest("", api_routes);

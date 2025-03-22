@@ -284,17 +284,6 @@ pub async fn index_handler() -> Html<String> {
     Html(processed_content)
 }
 
-// Add this handler to serve the editor page
-pub async fn editor_handler() -> Html<String> {
-    let editor_html = StaticAssets::get("editor.html")
-        .expect("editor.html not found in embedded assets");
-    let content = std::str::from_utf8(editor_html.data.as_ref())
-        .expect("Failed to convert editor.html to UTF-8")
-        .to_string();
-    
-    Html(content)
-}
-
 // New handler to get the current brightness
 pub async fn get_brightness(
     State((display, _)): State<AppState>,
