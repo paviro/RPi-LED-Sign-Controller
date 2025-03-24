@@ -1,7 +1,7 @@
 use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType};
 use embedded_graphics::{
-    mono_font::{ascii::FONT_10X20, MonoTextStyle},
-    text::Text,
+    mono_font::{MonoTextStyle},
+    text::{Text},
     pixelcolor::Rgb888,
     geometry::Point,
     Drawable,
@@ -14,6 +14,8 @@ use crate::led_driver::{LedDriver, LedCanvas};
 use crate::embedded_graphics_support::EmbeddedGraphicsCanvas;
 use crate::config::DisplayConfig;
 use uuid::Uuid;
+// Add this import for Unicode font
+use embedded_graphics::mono_font::iso_8859_1::{FONT_10X20 as FONT_10X20_LATIN1};
 
 // Structure to manage our LED matrix state
 pub struct DisplayManager {
@@ -109,8 +111,8 @@ impl DisplayManager {
     }
 
     pub fn calculate_text_width(&self, text: &str, _style: &MonoTextStyle<Rgb888>) -> i32 {
-        // FONT_10X20 is 10 pixels wide per character, add a small buffer
-        (text.len() as i32) * 10 + 2
+        // Count actual characters, not bytes
+        (text.chars().count() as i32) * 10 + 2
     }
 
     pub fn get_current_content(&self) -> &DisplayContent {
@@ -452,7 +454,7 @@ impl DisplayManager {
         let current = self.get_current_content().clone();
         // Apply brightness scaling to the text color
         let (r, g, b) = self.apply_brightness(current.color);
-        let default_text_style = MonoTextStyle::new(&FONT_10X20, Rgb888::new(r, g, b));
+        let default_text_style = MonoTextStyle::new(&FONT_10X20_LATIN1, Rgb888::new(r, g, b));
         
         self.text_width = self.calculate_text_width(&current.text, &default_text_style);
         
@@ -465,62 +467,97 @@ impl DisplayManager {
         let mut eg_canvas = EmbeddedGraphicsCanvas::new(&mut canvas);
         
         if current.colored_segments.is_some() && !current.colored_segments.as_ref().unwrap().is_empty() {
-            // Render text with multiple colors
+            // First convert the entire text to a vector of characters for safe indexing
+            let all_chars: Vec<char> = current.text.chars().collect();
             let segments = current.colored_segments.as_ref().unwrap();
-            let mut last_end = 0;
             
+            // Create a new vector of segments with character-based indices
+            let mut char_segments = Vec::new();
             for segment in segments {
-                // Render the text segment if it's valid
-                if segment.start < current.text.len() && segment.end <= current.text.len() && segment.start < segment.end {
+                // Count characters up to the byte indices, but do this safely
+                let mut start_char = 0;
+                let mut current_byte_pos = 0;
+                for c in current.text.chars() {
+                    if current_byte_pos >= segment.start {
+                        break;
+                    }
+                    start_char += 1;
+                    current_byte_pos += c.len_utf8();
+                }
+                
+                let mut end_char = start_char;
+                for c in current.text.chars().skip(start_char) {
+                    if current_byte_pos >= segment.end {
+                        break;
+                    }
+                    end_char += 1;
+                    current_byte_pos += c.len_utf8();
+                }
+                
+                char_segments.push((start_char, end_char, segment.color));
+            }
+            
+            // Sort segments by start position
+            char_segments.sort_by_key(|s| s.0);
+            
+            // Render segments with gaps between them
+            let mut last_end_char = 0;
+            
+            for (start_char, end_char, color) in char_segments {
+                // Only process valid segments
+                if start_char < all_chars.len() && end_char <= all_chars.len() && start_char < end_char {
                     // Render any text before this segment with default color if needed
-                    if segment.start > last_end {
-                        let default_segment = &current.text[last_end..segment.start];
+                    if start_char > last_end_char {
+                        let default_segment: String = all_chars[last_end_char..start_char].iter().collect();
+                        
                         let x_pos = if current.scroll {
-                            position + (last_end as i32 * 10) // Approximate character width
+                            position + (last_end_char as i32 * 10)
                         } else {
-                            (self.display_width - self.text_width) / 2 + (last_end as i32 * 10)
+                            (self.display_width - self.text_width) / 2 + (last_end_char as i32 * 10)
                         };
                         
-                        Text::new(default_segment, Point::new(x_pos, vertical_position), default_text_style)
+                        Text::new(&default_segment, Point::new(x_pos, vertical_position), default_text_style)
                             .draw(&mut eg_canvas)
                             .unwrap();
                     }
                     
                     // Render the colored segment
-                    let segment_text = &current.text[segment.start..segment.end];
+                    let segment_text: String = all_chars[start_char..end_char].iter().collect();
+                    
                     // Apply brightness scaling to segment color
-                    let (sr, sg, sb) = self.apply_brightness(segment.color);
-                    let segment_style = MonoTextStyle::new(&FONT_10X20, Rgb888::new(sr, sg, sb));
+                    let (sr, sg, sb) = self.apply_brightness(color);
+                    let segment_style = MonoTextStyle::new(&FONT_10X20_LATIN1, Rgb888::new(sr, sg, sb));
                     
                     let x_pos = if current.scroll {
-                        position + (segment.start as i32 * 10) // Approximate character width
+                        position + (start_char as i32 * 10)
                     } else {
-                        (self.display_width - self.text_width) / 2 + (segment.start as i32 * 10)
+                        (self.display_width - self.text_width) / 2 + (start_char as i32 * 10)
                     };
                     
-                    Text::new(segment_text, Point::new(x_pos, vertical_position), segment_style)
+                    Text::new(&segment_text, Point::new(x_pos, vertical_position), segment_style)
                         .draw(&mut eg_canvas)
                         .unwrap();
                     
-                    last_end = segment.end;
+                    last_end_char = end_char;
                 }
             }
             
             // Render any remaining text with default color
-            if last_end < current.text.len() {
-                let remaining_text = &current.text[last_end..];
+            if last_end_char < all_chars.len() {
+                let remaining_text: String = all_chars[last_end_char..].iter().collect();
+                
                 let x_pos = if current.scroll {
-                    position + (last_end as i32 * 10) // Approximate character width
+                    position + (last_end_char as i32 * 10)
                 } else {
-                    (self.display_width - self.text_width) / 2 + (last_end as i32 * 10)
+                    (self.display_width - self.text_width) / 2 + (last_end_char as i32 * 10)
                 };
                 
-                Text::new(remaining_text, Point::new(x_pos, vertical_position), default_text_style)
+                Text::new(&remaining_text, Point::new(x_pos, vertical_position), default_text_style)
                     .draw(&mut eg_canvas)
                     .unwrap();
             }
         } else {
-            // Render text with a single color
+            // Render text with a single color - this path is already safe for UTF-8
             if current.scroll {
                 Text::new(&current.text, Point::new(position, vertical_position), default_text_style)
                     .draw(&mut eg_canvas)
