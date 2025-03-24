@@ -6,7 +6,7 @@ use serde::ser::{Serializer, SerializeMap};
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub enum ContentType {
     Text,
-    // Future types will be added here (Image, Video, Animation, etc.)
+    // Future types will be added here (Image, Clock, Animation, etc.)
 }
 
 // Provide default implementation
@@ -43,24 +43,45 @@ impl Default for TextFormatting {
 pub struct TextSegment {
     pub start: usize,  // Start index in the text (character position)
     pub end: usize,    // End index in the text (exclusive, character position)
-    pub color: Option<(u8, u8, u8)>,   // Optional color (use parent text color if None)
+    pub color: Option<[u8; 3]>,   // Changed from tuple to array
     pub formatting: Option<TextFormatting>,  // Optional formatting
 }
 
-// Structure to hold display content configuration
+// Base structure for all display content items
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DisplayContent {
     #[serde(default = "generate_uuid_string")]
-    pub id: String,             // ID field with default function
-    pub content_type: ContentType,
-    pub text: String,          // Full text (for backwards compatibility)
-    pub scroll: bool,
-    pub color: (u8, u8, u8),    // Default text color
-    pub speed: f32,             // Pixels per second
+    pub id: String,
     pub duration: u64,          // Display duration in seconds (0 = indefinite)
     pub repeat_count: u32,      // Number of times to repeat (0 = indefinite)
     pub border_effect: Option<BorderEffect>, // Optional border effect
-    pub text_segments: Option<Vec<TextSegment>>, // New field replacing colored_segments
+    pub content: ContentData,
+}
+
+// Tagged union approach for different content types
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ContentData {
+    #[serde(rename = "type")]
+    pub content_type: ContentType,
+    pub data: ContentDetails,
+}
+
+// Content details as an enum
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum ContentDetails {
+    Text(TextContent),
+    // Future types: Image, Clock, etc.
+}
+
+// Text-specific content structure
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TextContent {
+    pub text: String,
+    pub scroll: bool,
+    pub color: [u8; 3],  // Changed from tuple to array
+    pub speed: f32,
+    pub text_segments: Option<Vec<TextSegment>>,
 }
 
 // Helper function to generate UUID strings for default values
@@ -68,20 +89,24 @@ fn generate_uuid_string() -> String {
     Uuid::new_v4().to_string()
 }
 
-// Optionally update the default implementation if needed
+// Default implementation for DisplayContent
 impl Default for DisplayContent {
     fn default() -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
-            content_type: ContentType::Text,
-            text: String::new(),
-            scroll: true,
-            color: (255, 255, 255),
-            speed: 50.0,
             duration: 10,
             repeat_count: 1,
             border_effect: None,
-            text_segments: None,
+            content: ContentData {
+                content_type: ContentType::Text,
+                data: ContentDetails::Text(TextContent {
+                    text: String::new(),
+                    scroll: true,
+                    color: [255, 255, 255],
+                    speed: 50.0,
+                    text_segments: None,
+                }),
+            },
         }
     }
 }
@@ -91,9 +116,9 @@ impl Default for DisplayContent {
 pub enum BorderEffect {
     None,
     Rainbow,
-    Pulse { colors: Vec<(u8, u8, u8)> },
-    Sparkle { colors: Vec<(u8, u8, u8)> },
-    Gradient { colors: Vec<(u8, u8, u8)> },
+    Pulse { colors: Vec<[u8; 3]> }, // Changed from tuple to array
+    Sparkle { colors: Vec<[u8; 3]> }, // Changed from tuple to array
+    Gradient { colors: Vec<[u8; 3]> }, // Changed from tuple to array
 }
 
 // Provide defaults

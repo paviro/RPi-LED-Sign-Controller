@@ -21,8 +21,12 @@ This document outlines all available API endpoints for the LED Matrix Controller
   - [Ping Preview Mode](#ping-preview-mode)
 - [Data Structures](#data-structures)
   - [DisplayContent](#displaycontent)
+  - [ContentType](#contenttype)
+  - [ContentData](#contentdata)
+  - [TextContent](#textcontent)
   - [BorderEffect](#bordereffect)
-  - [ColoredSegment](#coloredsegment)
+  - [TextSegment](#textsegment)
+  - [TextFormatting](#textformatting)
 
 ## Playlist Management
 
@@ -43,15 +47,19 @@ Retrieves all items in the playlist.
 [
   {
     "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-    "content_type": "Text",
-    "text": "Welcome to LED Matrix Controller",
-    "scroll": true,
-    "color": [255, 255, 255],
-    "speed": 50.0,
     "duration": 10,
     "repeat_count": 1,
     "border_effect": {"Rainbow": null},
-    "colored_segments": null
+    "content": {
+      "type": "Text",
+      "data": {
+        "text": "Welcome to LED Matrix Controller",
+        "scroll": true,
+        "color": [255, 255, 255],
+        "speed": 50.0,
+        "text_segments": null
+      }
+    }
   },
   ...
 ]
@@ -79,15 +87,19 @@ Creates a new playlist item.
 ```json
 {
   "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "content_type": "Text",
-  "text": "Welcome to LED Matrix Controller",
-  "scroll": true,
-  "color": [255, 255, 255],
-  "speed": 50.0,
   "duration": 10,
   "repeat_count": 1,
   "border_effect": {"Rainbow": null},
-  "colored_segments": null
+  "content": {
+    "type": "Text",
+    "data": {
+      "text": "Welcome to LED Matrix Controller",
+      "scroll": true,
+      "color": [255, 255, 255],
+      "speed": 50.0,
+      "text_segments": null
+    }
+  }
 }
 ```
 
@@ -109,15 +121,19 @@ Retrieves a specific playlist item by ID.
 ```json
 {
   "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "content_type": "Text",
-  "text": "Welcome to LED Matrix Controller",
-  "scroll": true,
-  "color": [255, 255, 255],
-  "speed": 50.0,
   "duration": 10,
   "repeat_count": 1,
   "border_effect": {"Rainbow": null},
-  "colored_segments": null
+  "content": {
+    "type": "Text",
+    "data": {
+      "text": "Welcome to LED Matrix Controller",
+      "scroll": true,
+      "color": [255, 255, 255],
+      "speed": 50.0,
+      "text_segments": null
+    }
+  }
 }
 ```
 
@@ -146,7 +162,26 @@ Updates a specific playlist item by ID.
 #### Success Response
 
 - **Code**: 200 OK
-- **Content**: None
+- **Content**: The updated [DisplayContent](#displaycontent) object
+
+```json
+{
+  "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+  "duration": 10,
+  "repeat_count": 1,
+  "border_effect": {"Rainbow": null},
+  "content": {
+    "type": "Text",
+    "data": {
+      "text": "Updated Text Content",
+      "scroll": true,
+      "color": [255, 255, 255],
+      "speed": 50.0,
+      "text_segments": null
+    }
+  }
+}
+```
 
 #### Error Response
 
@@ -197,7 +232,29 @@ Changes the order of playlist items.
 #### Success Response
 
 - **Code**: 200 OK
-- **Content**: None
+- **Content**: Array of reordered [DisplayContent](#displaycontent) objects
+
+```json
+[
+  {
+    "id": "id1",
+    "duration": 10,
+    "repeat_count": 1,
+    "border_effect": null,
+    "content": {
+      "type": "Text",
+      "data": {
+        "text": "First item",
+        "scroll": true,
+        "color": [255, 255, 255],
+        "speed": 50.0,
+        "text_segments": null
+      }
+    }
+  },
+  // Additional items...
+]
+```
 
 #### Error Response
 
@@ -248,7 +305,13 @@ Updates the brightness setting.
 #### Success Response
 
 - **Code**: 200 OK
-- **Content**: None
+- **Content**: Updated brightness settings
+
+```json
+{
+  "brightness": 75
+}
+```
 
 ## Preview Mode
 
@@ -272,7 +335,26 @@ Starts preview mode with the provided content.
 #### Success Response
 
 - **Code**: 200 OK
-- **Content**: None
+- **Content**: The [DisplayContent](#displaycontent) object being previewed
+
+```json
+{
+  "id": "preview-d290f1ee-6c54-4b01-90e6-d701748f0851",
+  "duration": 10,
+  "repeat_count": 1,
+  "border_effect": {"Rainbow": null},
+  "content": {
+    "type": "Text",
+    "data": {
+      "text": "Preview Text",
+      "scroll": true,
+      "color": [255, 255, 255],
+      "speed": 50.0,
+      "text_segments": null
+    }
+  }
+}
+```
 
 ### Exit Preview Mode
 
@@ -336,27 +418,44 @@ Keeps preview mode active (prevents timeout).
 ```json
 {
   "id": "string", // Optional - will be generated if omitted
-  "content_type": "Text", // Currently only "Text" is supported
-  "text": "string", // Text content to display
-  "scroll": boolean, // Whether to scroll the text
-  "color": [R, G, B], // RGB color as a tuple of integers (0-255)
-  "speed": number, // Scroll speed in pixels per second
   "duration": number, // Display duration in seconds (0 = indefinite)
   "repeat_count": number, // Number of times to repeat (0 = indefinite)
   "border_effect": { // Optional border effect
     "None": null, // or
     "Rainbow": null, // or
-    "Pulse": {"colors": [[R, G, B], [R, G, B], ...]}, // or
-    "Sparkle": {"colors": [[R, G, B], [R, G, B], ...]}, // or
-    "Gradient": {"colors": [[R, G, B], [R, G, B], ...]}
+    "Pulse": {"colors": [[R, G, B], ...]}, // or
+    "Sparkle": {"colors": [[R, G, B], ...]}, // or
+    "Gradient": {"colors": [[R, G, B], ...]}
   },
-  "colored_segments": [ // Optional colored text segments
-    {
-      "start": number, // Start index in the text
-      "end": number, // End index in the text (exclusive)
-      "text": "string", // Optional text content of the segment
-      "color": [R, G, B] // RGB color for this segment
-    }
+  "content": {
+    "type": "Text", // Content type (currently only Text supported)
+    "data": { ... } // Content-specific data structure
+  }
+}
+```
+
+### ContentType
+
+Available content types:
+- `Text` - Text content (currently the only supported type)
+- Future types: `Image`, `Clock`, `Animation`, etc.
+
+### ContentData
+
+The structure of the `data` field depends on the `type` value:
+
+For `Text` type, see [TextContent](#textcontent).
+
+### TextContent
+
+```json
+{
+  "text": "string", // Text content to display
+  "scroll": boolean, // Whether to scroll the text
+  "color": [R, G, B], // RGB color as a tuple of integers (0-255)
+  "speed": number, // Scroll speed in pixels per second
+  "text_segments": [ // Optional text formatting segments
+    { ... } // See TextSegment structure
   ]
 }
 ```
@@ -371,16 +470,30 @@ Border effects add visual effects around the displayed content:
 - `Sparkle`: Sparkling effect with the specified colors
 - `Gradient`: Gradient animation with the specified colors
 
-### ColoredSegment
+### TextSegment
 
-Colored segments allow different parts of the text to have different colors:
+Text segments allow different parts of the text to have different colors and formatting:
 
 ```json
 {
   "start": 0, // Start index in the text
   "end": 5, // End index in the text (exclusive)
-  "text": "Hello", // Optional text content (alternative to start/end)
-  "color": [255, 0, 0] // RGB color for this segment
+  "color": [255, 0, 0], // Optional RGB color for this segment
+  "formatting": { // Optional formatting for this segment
+    "bold": false,
+    "underline": false,
+    "strikethrough": false
+  }
+}
+```
+
+### TextFormatting
+
+```json
+{
+  "bold": boolean, // Whether to make the text bold
+  "underline": boolean, // Whether to underline the text
+  "strikethrough": boolean // Whether to strike through the text
 }
 ```
 
@@ -395,7 +508,19 @@ When editing content, the frontend should:
    fetch('/api/preview', {
      method: 'POST',
      headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify(contentData)
+     body: JSON.stringify({
+       "duration": 10,
+       "repeat_count": 1,
+       "content": {
+         "type": "Text",
+         "data": {
+           "text": "Preview Text",
+           "scroll": true,
+           "color": [255, 255, 255],
+           "speed": 50.0
+         }
+       }
+     })
    });
    ```
 
@@ -422,4 +547,4 @@ When editing content, the frontend should:
          // Still in preview mode
        }
      });
-   ``` 
+   ```

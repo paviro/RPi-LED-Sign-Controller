@@ -12,7 +12,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::{
     display_manager::DisplayManager,
-    models::{DisplayContent, BrightnessSettings, ReorderRequest},
+    models::{DisplayContent, BrightnessSettings, ReorderRequest, ContentDetails, TextContent},
     app_storage::SharedStorage,
 };
 
@@ -71,19 +71,16 @@ pub async fn update_playlist_item(
     State((display, storage)): State<AppState>,
     Path(id): Path<String>,
     Json(updated_item): Json<DisplayContent>,
-) -> Result<StatusCode, StatusCode> {
+) -> Result<Json<DisplayContent>, StatusCode> {
     debug!("Updating playlist item with ID: {}", id);
     
     let mut display_guard = display.lock().await;
     
-    // Find the index of the item with the given ID
     if let Some(index) = display_guard.playlist.items.iter().position(|item| item.id == id) {
-        // Make sure we keep the original ID
         let mut item_to_update = updated_item;
         item_to_update.id = id;
         
-        // Update the item
-        display_guard.playlist.items[index] = item_to_update;
+        display_guard.playlist.items[index] = item_to_update.clone();
         
         // Save updated playlist
         let storage_guard = storage.lock().unwrap();
@@ -96,7 +93,7 @@ pub async fn update_playlist_item(
             display_guard.reset_display_state();
         }
         
-        Ok(StatusCode::OK)
+        Ok(Json(item_to_update))
     } else {
         Err(StatusCode::NOT_FOUND)
     }
@@ -145,7 +142,7 @@ pub async fn delete_playlist_item(
 pub async fn reorder_playlist_items(
     State((display, storage)): State<AppState>,
     Json(reorder_request): Json<ReorderRequest>,
-) -> Result<StatusCode, StatusCode> {
+) -> Result<Json<Vec<DisplayContent>>, StatusCode> {
     debug!("Reordering playlist items");
     
     let mut display_guard = display.lock().await;
@@ -175,7 +172,7 @@ pub async fn reorder_playlist_items(
     }
     
     // Replace the items with the new ordered list
-    display_guard.playlist.items = new_items;
+    display_guard.playlist.items = new_items.clone();
     
     // Reset display state
     display_guard.reset_display_state();
@@ -186,7 +183,8 @@ pub async fn reorder_playlist_items(
         error!("Failed to save playlist after reordering items");
     }
     
-    Ok(StatusCode::OK)
+    // Return the reordered items
+    Ok(Json(new_items))
 }
 
 // Add this helper method to DisplayManager
@@ -200,7 +198,7 @@ impl DisplayManager {
     }
 }
 
-// Background task to handle display updates
+// Display loop handler - this is where the scroll logic was updated
 pub async fn display_loop(display: Arc<Mutex<DisplayManager>>) {
     info!("Starting display update loop");
     let mut accumulated_time: f32 = 0.0;
@@ -232,21 +230,24 @@ pub async fn display_loop(display: Arc<Mutex<DisplayManager>>) {
         }
         
         let current = display_guard.get_current_content().clone();
-        if current.scroll {
-            accumulated_time += dt;
-            let pixels_to_move = (accumulated_time * current.speed) as i32;
-            if pixels_to_move > 0 {
-                display_guard.scroll_position -= pixels_to_move;
-                accumulated_time = 0.0;
-                
-                // Reset position when text is off screen
-                if display_guard.scroll_position < -display_guard.text_width {
-                    display_guard.scroll_position = display_guard.display_width;
-                    display_guard.completed_scrolls += 1;  // Increment completed scroll count
-                    info!("Completed scroll cycle {} of {}", 
-                         display_guard.completed_scrolls, 
-                         if current.repeat_count == 0 { "infinite".to_string() } 
-                         else { current.repeat_count.to_string() });
+        #[allow(irrefutable_let_patterns)]
+        if let ContentDetails::Text(text_content) = &current.content.data {
+            if text_content.scroll {
+                accumulated_time += dt;
+                let pixels_to_move = (accumulated_time * text_content.speed) as i32;
+                if pixels_to_move > 0 {
+                    display_guard.scroll_position -= pixels_to_move;
+                    accumulated_time = 0.0;
+                    
+                    // Reset position when text is off screen
+                    if display_guard.scroll_position < -display_guard.text_width {
+                        display_guard.scroll_position = display_guard.display_width;
+                        display_guard.completed_scrolls += 1;  // Increment completed scroll count
+                        info!("Completed scroll cycle {} of {}", 
+                             display_guard.completed_scrolls, 
+                             if current.repeat_count == 0 { "infinite".to_string() } 
+                             else { current.repeat_count.to_string() });
+                    }
                 }
             }
         }
@@ -305,7 +306,7 @@ pub async fn get_brightness(
 pub async fn update_brightness(
     State((display, storage)): State<AppState>,
     Json(settings): Json<BrightnessSettings>,
-) -> StatusCode {
+) -> Json<BrightnessSettings> {
     debug!("Updating brightness to {}", settings.brightness);
     
     let mut display = display.lock().await;
@@ -319,7 +320,10 @@ pub async fn update_brightness(
         error!("Failed to save brightness setting");
     }
     
-    StatusCode::OK
+    // Return the updated settings
+    Json(BrightnessSettings {
+        brightness: display.get_brightness()
+    })
 }
 
 // Add a function to serve files from the _next directory
@@ -377,21 +381,20 @@ pub async fn static_assets_handler(Path(path): Path<String>) -> impl IntoRespons
     }
 }
 
-// New struct for preview mode state
+// New struct to represent PreviewModeState for API responses
 #[derive(Serialize, Deserialize)]
 pub struct PreviewModeState {
     pub active: bool,
 }
 
-// Handler for starting preview mode with a content item
-pub async fn start_preview_mode(
-    State((display, _)): State<AppState>,
-    Json(preview_item): Json<DisplayContent>,
-) -> StatusCode {
-    // Display manager handles logging based on state changes
-    let mut display_guard = display.lock().await;
-    display_guard.enter_preview_mode(preview_item);
-    StatusCode::OK
+// Add #[allow(dead_code)] to functions not currently used
+#[allow(dead_code)]
+fn extract_text_content(content: &DisplayContent) -> Option<&TextContent> {
+    match &content.content.data {
+        ContentDetails::Text(text_content) => Some(text_content),
+        #[allow(unreachable_patterns)]
+        _ => None,
+    }
 }
 
 // Handler for exiting preview mode
@@ -423,4 +426,16 @@ pub async fn ping_preview_mode(
     } else {
         StatusCode::NOT_FOUND
     }
+}
+
+// Handler for starting preview mode with a content item
+pub async fn start_preview_mode(
+    State((display, _)): State<AppState>,
+    Json(preview_item): Json<DisplayContent>,
+) -> Json<DisplayContent> {
+    let mut display_guard = display.lock().await;
+    display_guard.enter_preview_mode(preview_item.clone());
+    
+    // Return the item that's being previewed
+    Json(preview_item)
 } 

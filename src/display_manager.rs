@@ -1,4 +1,4 @@
-use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType};
+use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType, ContentData, TextContent, ContentDetails};
 use embedded_graphics::mono_font::iso_8859_1::FONT_10X20 as FONT_10X20_LATIN1;
 use embedded_graphics::{
     mono_font::{MonoTextStyle},
@@ -128,15 +128,21 @@ impl DisplayManager {
                 
                 DisplayContent {
                     id: Uuid::new_v4().to_string(),
-                    content_type: ContentType::Text,
-                    text: format!("LED Matrix Controller | Web interface: http://{}:3000 | Use web UI to configure display", ip),
-                    scroll: true,
-                    color: (0, 255, 0),  // Green color for visibility
-                    speed: 30.0,         // Slower for better readability
                     duration: 0,
                     repeat_count: 0,     // Infinite repeat
-                    border_effect: Some(BorderEffect::Pulse { colors: vec![(0, 255, 0), (0, 200, 0)] }), // Add a nice pulsing border
-                    text_segments: None,
+                    border_effect: Some(BorderEffect::Pulse { 
+                        colors: vec![[0, 255, 0], [0, 200, 0]] 
+                    }),
+                    content: ContentData {
+                        content_type: ContentType::Text,
+                        data: ContentDetails::Text(TextContent {
+                            text: format!("LED Matrix Controller | Web interface: http://{}:3000 | Use web UI to configure display", ip),
+                            scroll: true,
+                            color: [0, 255, 0],  // Green color for visibility
+                            speed: 30.0,         // Slower for better readability
+                            text_segments: None,
+                        }),
+                    },
                 }
             });
             &DEFAULT_ITEM
@@ -161,8 +167,9 @@ impl DisplayManager {
         let elapsed = self.last_transition.elapsed();
         
         // For duration-based items
-        if current_content.duration > 0 && !current_content.scroll {
+        if current_content.duration > 0 {
             let duration = Duration::from_secs(current_content.duration);
+            
             if elapsed >= duration {
                 self.current_repeat += 1;
                 
@@ -180,23 +187,29 @@ impl DisplayManager {
                 false
             }
         } else {
-            // For scroll-based items, check if we've completed a scroll
-            if self.completed_scrolls > 0 {
-                self.current_repeat += 1;
-                self.completed_scrolls = 0;
-                
-                // Check if we've reached the repeat count
-                if current_content.repeat_count == 0 || self.current_repeat < current_content.repeat_count {
-                    // Reset position but stay on the same item
-                    self.scroll_position = self.display_width;
-                    false
-                } else {
-                    // Move to the next item
-                    self.advance_playlist();
-                    true
-                }
-            } else {
-                false
+            // For scroll-based items with TextContent, check if we've completed a scroll
+            match &current_content.content.data {
+                ContentDetails::Text(text_content) => {
+                    if text_content.scroll && self.completed_scrolls > 0 {
+                        self.current_repeat += 1;
+                        self.completed_scrolls = 0;
+                        
+                        // Check if we've reached the repeat count
+                        if current_content.repeat_count == 0 || self.current_repeat < current_content.repeat_count {
+                            // Reset position but stay on the same item
+                            self.scroll_position = self.display_width;
+                            false
+                        } else {
+                            // Move to the next item
+                            self.advance_playlist();
+                            true
+                        }
+                    } else {
+                        false
+                    }
+                },
+                #[allow(unreachable_patterns)]
+                _ => false
             }
         }
     }
@@ -249,7 +262,7 @@ impl DisplayManager {
                     let hue = (i as f32 / width as f32 + self.border_animation_state) % 1.0;
                     let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
                     // Apply brightness scaling
-                    let (r, g, b) = self.apply_brightness((r, g, b));
+                    let [r, g, b] = self.apply_brightness([r, g, b]);
                     
                     // Top and bottom borders (2 pixels thick)
                     canvas.set_pixel(i as usize, 0, r, g, b);
@@ -262,7 +275,7 @@ impl DisplayManager {
                     let hue = (i as f32 / height as f32 + self.border_animation_state) % 1.0;
                     let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
                     // Apply brightness scaling
-                    let (r, g, b) = self.apply_brightness((r, g, b));
+                    let [r, g, b] = self.apply_brightness([r, g, b]);
                     
                     // Left and right borders (2 pixels thick)
                     canvas.set_pixel(0, i as usize, r, g, b);
@@ -274,8 +287,13 @@ impl DisplayManager {
             BorderEffect::Pulse { colors } => {
                 // Get colors to use - either from the effect or default to text color
                 let color_options = if colors.is_empty() {
+                    // Extract color from current content using pattern matching
                     let current = self.get_current_content();
-                    vec![current.color]
+                    match &current.content.data {
+                        ContentDetails::Text(text_content) => vec![text_content.color],
+                        #[allow(unreachable_patterns)]
+                        _ => vec![] // Empty vec for future content types
+                    }
                 } else {
                     colors.clone()
                 };
@@ -311,15 +329,15 @@ impl DisplayManager {
                 };
                 
                 // Get the color and pre-scale it for the pulse effect
-                let (r, g, b) = color_options[color_index];
-                let pre_scaled = (
+                let [r, g, b] = color_options[color_index];
+                let pre_scaled = [
                     (r as f32 * effect_brightness) as u8,
                     (g as f32 * effect_brightness) as u8,
                     (b as f32 * effect_brightness) as u8
-                );
+                ];
                 
                 // Then apply user brightness scaling using our consistent method
-                let (r, g, b) = self.apply_brightness(pre_scaled);
+                let [r, g, b] = self.apply_brightness(pre_scaled);
                 
                 // Draw the border (2 pixels thick)
                 for i in 0..width {
@@ -342,8 +360,13 @@ impl DisplayManager {
                 // If no colors provided, use the text color as default
                 let mut rng = rand::thread_rng();
                 let color_options = if colors.is_empty() {
+                    // Extract color from current content using pattern matching
                     let current = self.get_current_content();
-                    vec![current.color]
+                    match &current.content.data {
+                        ContentDetails::Text(text_content) => vec![text_content.color],
+                        #[allow(unreachable_patterns)]
+                        _ => vec![] // Empty vec for future content types
+                    }
                 } else {
                     colors.clone()
                 };
@@ -352,7 +375,7 @@ impl DisplayManager {
                 for _ in 0..30 { // Increased from 20 to provide more density for 2-pixel border
                     // Randomly select one of the available colors and apply brightness
                     let color_index = rng.gen_range(0..color_options.len());
-                    let (r, g, b) = self.apply_brightness(color_options[color_index]);
+                    let [r, g, b] = self.apply_brightness(color_options[color_index]);
                     
                     // Random position along the border
                     let pos = rng.gen_range(0..2 * (width + height - 2));
@@ -408,8 +431,8 @@ impl DisplayManager {
                     let segment_progress = (adjusted_pos % segment_length) as f32 / segment_length as f32;
                     
                     // Get colors to interpolate between
-                    let (r1, g1, b1) = colors[segment_idx];
-                    let (r2, g2, b2) = colors[next_segment_idx];
+                    let [r1, g1, b1] = colors[segment_idx];
+                    let [r2, g2, b2] = colors[next_segment_idx];
                     
                     // Interpolate colors and apply brightness
                     let r = (r1 as f32 * (1.0 - segment_progress) + r2 as f32 * segment_progress) as u8;
@@ -417,7 +440,7 @@ impl DisplayManager {
                     let b = (b1 as f32 * (1.0 - segment_progress) + b2 as f32 * segment_progress) as u8;
                     
                     // Apply brightness scaling
-                    let (r, g, b) = self.apply_brightness((r, g, b));
+                    let [r, g, b] = self.apply_brightness([r, g, b]);
                     
                     // Map position to actual pixel on display (2 pixels thick)
                     if pos < width as usize {
@@ -451,132 +474,137 @@ impl DisplayManager {
         canvas.fill(0, 0, 0);  // Always clear the canvas
         
         let current = self.get_current_content().clone();
-        // Apply brightness scaling to the text color
-        let (r, g, b) = self.apply_brightness(current.color);
-        let default_text_style = MonoTextStyle::new(&FONT_10X20_LATIN1, Rgb888::new(r, g, b));
         
-        self.text_width = self.calculate_text_width(&current.text, &default_text_style);
-        
-        // Dynamic vertical centering calculation
-        let font_height = 20;
-        let baseline_adjustment = 5;
-        let vertical_position = (self.display_height / 2) + (font_height / 2) - baseline_adjustment;
-        
-        // Create the embedded graphics canvas wrapper
-        let mut eg_canvas = EmbeddedGraphicsCanvas::new(&mut canvas);
-        
-        if let Some(segments) = &current.text_segments {
-            if !segments.is_empty() {
-                // Render each text segment with its specific formatting
-                let mut x_pos = if current.scroll {
-                    position
-                } else {
-                    (self.display_width - self.text_width) / 2
-                };
-                
-                // Collect formatting data to apply after text rendering
-                let mut formatting_effects = Vec::new();
-                
-                // First pass: render all text
-                for segment in segments {
-                    // Apply brightness scaling to segment color
-                    // Use the segment color if specified, otherwise fall back to the default text color
-                    let segment_color = segment.color.unwrap_or(current.color);
-                    let (sr, sg, sb) = self.apply_brightness(segment_color);
+        // Extract text content from the current content
+        #[allow(irrefutable_let_patterns)]
+        if let ContentDetails::Text(text_content) = &current.content.data {
+            // Apply brightness scaling to the text color
+            let [r, g, b] = self.apply_brightness(text_content.color);
+            let default_text_style = MonoTextStyle::new(&FONT_10X20_LATIN1, Rgb888::new(r, g, b));
+            
+            self.text_width = self.calculate_text_width(&text_content.text, &default_text_style);
+            
+            // Dynamic vertical centering calculation
+            let font_height = 20;
+            let baseline_adjustment = 5;
+            let vertical_position = (self.display_height / 2) + (font_height / 2) - baseline_adjustment;
+            
+            // Create the embedded graphics canvas wrapper
+            let mut eg_canvas = EmbeddedGraphicsCanvas::new(&mut canvas);
+            
+            if let Some(segments) = &text_content.text_segments {
+                if !segments.is_empty() {
+                    // Render each text segment with its specific formatting
+                    let mut x_pos = if text_content.scroll {
+                        position
+                    } else {
+                        (self.display_width - self.text_width) / 2
+                    };
                     
-                    // Always use the same font for consistent sizing
-                    let font = &FONT_10X20_LATIN1;
-                    let segment_style = MonoTextStyle::new(font, Rgb888::new(sr, sg, sb));
+                    // Collect formatting data to apply after text rendering
+                    let mut formatting_effects = Vec::new();
                     
-                    // Extract the segment text from the main content text
-                    // Convert the full text to a vector of characters for safe indexing
-                    let chars: Vec<char> = current.text.chars().collect();
-                    
-                    // Make sure indices are within bounds
-                    let start = segment.start.min(chars.len());
-                    let end = segment.end.min(chars.len());
-                    
-                    if start < end {
-                        // Get the text for this segment
-                        let segment_text: String = chars[start..end].iter().collect();
+                    // First pass: render all text
+                    for segment in segments {
+                        // Apply brightness scaling to segment color
+                        // Use the segment color if specified, otherwise fall back to the default text color
+                        let segment_color = segment.color.unwrap_or(text_content.color);
+                        let [sr, sg, sb] = self.apply_brightness(segment_color);
                         
-                        // Calculate segment width consistently
-                        let segment_width = (end - start) as i32 * 10;
+                        // Always use the same font for consistent sizing
+                        let font = &FONT_10X20_LATIN1;
+                        let segment_style = MonoTextStyle::new(font, Rgb888::new(sr, sg, sb));
                         
-                        // Check for bold formatting if formatting exists
-                        let has_bold = segment.formatting.as_ref().map_or(false, |fmt| fmt.bold);
+                        // Extract the segment text from the main content text
+                        // Convert the full text to a vector of characters for safe indexing
+                        let chars: Vec<char> = text_content.text.chars().collect();
                         
-                        // Render the text
-                        if has_bold {
-                            // Draw text twice with a 1px offset to create a bold effect
-                            Text::new(&segment_text, Point::new(x_pos + 1, vertical_position), segment_style)
+                        // Make sure indices are within bounds
+                        let start = segment.start.min(chars.len());
+                        let end = segment.end.min(chars.len());
+                        
+                        if start < end {
+                            // Get the text for this segment
+                            let segment_text: String = chars[start..end].iter().collect();
+                            
+                            // Calculate segment width consistently
+                            let segment_width = (end - start) as i32 * 10;
+                            
+                            // Check for bold formatting if formatting exists
+                            let has_bold = segment.formatting.as_ref().map_or(false, |fmt| fmt.bold);
+                            
+                            // Render the text
+                            if has_bold {
+                                // Draw text twice with a 1px offset to create a bold effect
+                                Text::new(&segment_text, Point::new(x_pos + 1, vertical_position), segment_style)
+                                    .draw(&mut eg_canvas)
+                                    .unwrap();
+                            }
+                            Text::new(&segment_text, Point::new(x_pos, vertical_position), segment_style)
                                 .draw(&mut eg_canvas)
                                 .unwrap();
-                        }
-                        Text::new(&segment_text, Point::new(x_pos, vertical_position), segment_style)
-                            .draw(&mut eg_canvas)
-                            .unwrap();
-                        
-                        // Store formatting data for later processing
-                        let has_underline = segment.formatting.as_ref().map_or(false, |fmt| fmt.underline);
-                        let has_strikethrough = segment.formatting.as_ref().map_or(false, |fmt| fmt.strikethrough);
-                        
-                        if has_underline || has_strikethrough {
-                            formatting_effects.push((
-                                x_pos,
-                                segment_width,
-                                (sr, sg, sb),  // Store segment color for reference
-                                has_underline,
-                                has_strikethrough
-                            ));
-                        }
-                        
-                        // Move x position for next segment
-                        x_pos += segment_width;
-                    }
-                }
-                
-                // Drop eg_canvas to release mutable borrow on canvas
-                drop(eg_canvas);
-                
-                // Second pass: apply underline and strikethrough effects directly to canvas
-                for (x_pos, width, (r, g, b), is_underline, is_strikethrough) in formatting_effects {
-                    if is_underline {
-                        // Draw line 1px below text
-                        let underline_y = vertical_position + 3;
-                        for i in 0..width {
-                            canvas.set_pixel((x_pos + i) as usize, underline_y as usize, r, g, b);
+                            
+                            // Store formatting data for later processing
+                            let has_underline = segment.formatting.as_ref().map_or(false, |fmt| fmt.underline);
+                            let has_strikethrough = segment.formatting.as_ref().map_or(false, |fmt| fmt.strikethrough);
+                            
+                            if has_underline || has_strikethrough {
+                                formatting_effects.push((
+                                    x_pos,
+                                    segment_width,
+                                    [sr, sg, sb],  // Store segment color for reference
+                                    has_underline,
+                                    has_strikethrough
+                                ));
+                            }
+                            
+                            // Move x position for next segment
+                            x_pos += segment_width;
                         }
                     }
                     
-                    if is_strikethrough {
-                        // Get strikethrough color - red for white text, white for everything else
-                        let (strike_r, strike_g, strike_b) = get_smooth_strikethrough_color(r, g, b);
+                    // Drop eg_canvas to release mutable borrow on canvas
+                    drop(eg_canvas);
+                    
+                    // Second pass: apply underline and strikethrough effects directly to canvas
+                    for (x_pos, width, [r, g, b], is_underline, is_strikethrough) in formatting_effects {
+                        if is_underline {
+                            // Draw line 1px below text
+                            let underline_y = vertical_position + 3;
+                            for i in 0..width {
+                                canvas.set_pixel((x_pos + i) as usize, underline_y as usize, r, g, b);
+                            }
+                        }
                         
-                        // Draw line through text - two pixels high for better visibility
-                        let strike_y1 = vertical_position - font_height/5; 
-                        let strike_y2 = strike_y1 - 1; // Second line one pixel above
-                        
-                        for i in 0..width {
-                            // Draw two pixels in height
-                            canvas.set_pixel((x_pos + i) as usize, strike_y1 as usize, strike_r, strike_g, strike_b);
-                            canvas.set_pixel((x_pos + i) as usize, strike_y2 as usize, strike_r, strike_g, strike_b);
+                        if is_strikethrough {
+                            // Get strikethrough color - red for white text, white for everything else
+                            let [strike_r, strike_g, strike_b] = get_smooth_strikethrough_color(r, g, b);
+                            
+                            // Draw line through text - two pixels high for better visibility
+                            let strike_y1 = vertical_position - font_height/5; 
+                            let strike_y2 = strike_y1 - 1; // Second line one pixel above
+                            
+                            for i in 0..width {
+                                // Draw two pixels in height
+                                canvas.set_pixel((x_pos + i) as usize, strike_y1 as usize, strike_r, strike_g, strike_b);
+                                canvas.set_pixel((x_pos + i) as usize, strike_y2 as usize, strike_r, strike_g, strike_b);
+                            }
                         }
                     }
+                }
+                else {
+                    // Fallback to regular text rendering if segments list is empty
+                    self.render_unsegmented_text(&mut eg_canvas, text_content, position, vertical_position, &default_text_style);
+                    // Drop eg_canvas to release borrow
+                    drop(eg_canvas);
                 }
             }
             else {
-                // Fallback to regular text rendering if segments list is empty
-                self.render_unsegmented_text(&mut eg_canvas, &current, position, vertical_position, &default_text_style);
+                // No segments defined, render normal text
+                self.render_unsegmented_text(&mut eg_canvas, text_content, position, vertical_position, &default_text_style);
                 // Drop eg_canvas to release borrow
                 drop(eg_canvas);
             }
-        }
-        else {
-            // No segments defined, render normal text
-            self.render_unsegmented_text(&mut eg_canvas, &current, position, vertical_position, &default_text_style);
-            // Drop eg_canvas to release borrow
-            drop(eg_canvas);
         }
         
         // Draw border effect with brightness scaling
@@ -591,11 +619,11 @@ impl DisplayManager {
         self.canvas = Some(updated_canvas);
     }
     
-    // Helper method to render text without segments
+    // Modify render_unsegmented_text to accept TextContent
     fn render_unsegmented_text(
         &self, 
         eg_canvas: &mut EmbeddedGraphicsCanvas, 
-        content: &DisplayContent,
+        content: &TextContent,
         position: i32,
         vertical_position: i32,
         text_style: &MonoTextStyle<Rgb888>
@@ -610,6 +638,16 @@ impl DisplayManager {
                 .draw(eg_canvas)
                 .unwrap();
         }
+    }
+
+    // Update the method to apply brightness to a color array
+    fn apply_brightness(&self, color: [u8; 3]) -> [u8; 3] {
+        let brightness_scale = self.config.get_effective_brightness();
+        [
+            (color[0] as f32 * brightness_scale) as u8,
+            (color[1] as f32 * brightness_scale) as u8,
+            (color[2] as f32 * brightness_scale) as u8,
+        ]
     }
 
     // Add a method to check if the playlist is empty
@@ -639,19 +677,6 @@ impl DisplayManager {
         self.driver.shutdown();
     }
 
-    /// Applies software brightness scaling to colors
-    /// 
-    /// This scales the RGB values by the current user brightness level (0-100%)
-    /// instead of reinitializing the LED driver with a new hardware brightness.
-    fn apply_brightness(&self, color: (u8, u8, u8)) -> (u8, u8, u8) {
-        let brightness_scale = self.config.get_effective_brightness();
-        (
-            (color.0 as f32 * brightness_scale) as u8,
-            (color.1 as f32 * brightness_scale) as u8,
-            (color.2 as f32 * brightness_scale) as u8,
-        )
-    }
-
     // Update the method to set brightness without reinitializing
     pub fn set_brightness(&mut self, brightness: u8) {
         let brightness = brightness.clamp(0, 100);
@@ -670,24 +695,33 @@ impl DisplayManager {
         if already_in_preview && self.preview_content.is_some() {
             let previous_content = self.preview_content.as_ref().unwrap();
             
-            // Determine if we need to reset scroll position
-            let should_reset = 
-                // Reset if scroll mode changes
-                previous_content.scroll != content.scroll ||
-                // Reset if empty text becomes non-empty or vice versa
-                (previous_content.text.is_empty() != content.text.is_empty()) ||
-                // Reset if text length changes dramatically (by more than 50%)
-                (!previous_content.text.is_empty() && !content.text.is_empty() && 
-                 (previous_content.text.len() as f32 / content.text.len() as f32 > 1.5 || 
-                  content.text.len() as f32 / previous_content.text.len() as f32 > 1.5));
+            // Extract text content from both previous and new content
+            #[allow(irrefutable_let_patterns)]
+            if let (ContentDetails::Text(prev_text), ContentDetails::Text(new_text)) = 
+                (&previous_content.content.data, &content.content.data) {
                 
-            if !should_reset {
-                // Silent update - preserve scroll position
-                self.preview_content = Some(content);
-                return;
+                // Determine if we need to reset scroll position
+                let should_reset = 
+                    // Reset if scroll mode changes
+                    prev_text.scroll != new_text.scroll ||
+                    // Reset if empty text becomes non-empty or vice versa
+                    (prev_text.text.is_empty() != new_text.text.is_empty()) ||
+                    // Reset if text length changes dramatically (by more than 50%)
+                    (!prev_text.text.is_empty() && !new_text.text.is_empty() && 
+                     (prev_text.text.len() as f32 / new_text.text.len() as f32 > 1.5 || 
+                      new_text.text.len() as f32 / prev_text.text.len() as f32 > 1.5));
+                        
+                if !should_reset {
+                    // Silent update - preserve scroll position
+                    self.preview_content = Some(content);
+                    return;
+                }
+                
+                debug!("Resetting scroll position due to significant content change");
+            } else {
+                // Content type changed, we definitely need to reset
+                debug!("Resetting scroll position due to content type change");
             }
-            
-            debug!("Resetting scroll position due to significant content change");
         }
         else if !already_in_preview {
             // Only log once when first entering preview mode
@@ -793,8 +827,8 @@ fn get_local_ip() -> Option<String> {
     }
 }
 
-// Function that determines strikethrough color based on text color
-fn get_smooth_strikethrough_color(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
+// Helper function to get color for strikethrough - updated for arrays
+fn get_smooth_strikethrough_color(r: u8, g: u8, b: u8) -> [u8; 3] {
     // Check if we're in grayscale mode (R≈G≈B)
     let is_grayscale = (r as i16 - g as i16).abs() < 20 && 
                        (g as i16 - b as i16).abs() < 20 && 
@@ -802,7 +836,7 @@ fn get_smooth_strikethrough_color(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
     
     // For grayscale colors (white to gray to black), use red
     if is_grayscale {
-        return (255, 0, 0);
+        return [255, 0, 0];
     }
     
     // Check if the color is in the red family where G≈B
@@ -824,7 +858,7 @@ fn get_smooth_strikethrough_color(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
         let strike_g = (blend_factor * 255.0) as u8;
         let strike_b = (blend_factor * 255.0) as u8;
         
-        (strike_r, strike_g, strike_b)
+        [strike_r, strike_g, strike_b]
     } 
     // Handle mid-gray to mid-red axis (like 139,139,139 to 139,0,0)
     else if g_equals_b && r > g {
@@ -838,9 +872,9 @@ fn get_smooth_strikethrough_color(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
         let strike_g = (blend_factor * 255.0) as u8;
         let strike_b = (blend_factor * 255.0) as u8;
         
-        (strike_r, strike_g, strike_b)
+        [strike_r, strike_g, strike_b]
     } else {
         // For all other colors, use white strikethrough
-        (255, 255, 255)
+        [255, 255, 255]
     }
 } 
