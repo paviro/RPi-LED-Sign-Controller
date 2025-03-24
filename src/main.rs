@@ -18,7 +18,13 @@ use axum::{
     Router,
 };
 use display_manager::DisplayManager;
-use handlers::{index_handler, display_loop, get_brightness, update_brightness, get_playlist_items, create_playlist_item, get_playlist_item, update_playlist_item, delete_playlist_item, reorder_playlist_items};
+use handlers::{
+    index_handler, display_loop, get_brightness, update_brightness, 
+    get_playlist_items, create_playlist_item, get_playlist_item, 
+    update_playlist_item, delete_playlist_item, reorder_playlist_items,
+    start_preview_mode, exit_preview_mode, get_preview_mode_status,
+    ping_preview_mode
+};
 use std::{sync::Arc, net::SocketAddr};
 use tokio::sync::Mutex;
 use log::{info, warn, error, debug, LevelFilter};
@@ -188,6 +194,12 @@ async fn main() {
         // Settings endpoints
         .route("/api/settings/brightness", get(get_brightness))
         .route("/api/settings/brightness", put(update_brightness))
+        
+        // New preview mode endpoints
+        .route("/api/preview", post(start_preview_mode))
+        .route("/api/preview", delete(exit_preview_mode))
+        .route("/api/preview/status", get(get_preview_mode_status))
+        .route("/api/preview/ping", post(ping_preview_mode))
         
         .with_state((display.clone(), storage));
     

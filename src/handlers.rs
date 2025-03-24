@@ -6,9 +6,9 @@ use axum::{
 use std::{sync::Arc, time::{Duration, Instant}};
 use tokio::sync::Mutex;
 use log::{info, error, debug, warn};
-use uuid::Uuid;
 use crate::static_assets::StaticAssets;
 use mime_guess;
+use serde::{Serialize, Deserialize};
 
 use crate::{
     display_manager::DisplayManager,
@@ -31,14 +31,11 @@ pub async fn get_playlist_items(
 // Handler for creating a new playlist item
 pub async fn create_playlist_item(
     State((display, storage)): State<AppState>,
-    Json(mut item): Json<DisplayContent>,
+    Json(item): Json<DisplayContent>,
 ) -> (StatusCode, Json<DisplayContent>) {
     debug!("Creating new playlist item");
     
-    // Ensure the item has a unique ID
-    if item.id.is_empty() {
-        item.id = Uuid::new_v4().to_string();
-    }
+    // No need to check for empty ID - deserialization already handled it
     
     let mut display_guard = display.lock().await;
     display_guard.playlist.items.push(item.clone());
@@ -211,12 +208,18 @@ pub async fn display_loop(display: Arc<Mutex<DisplayManager>>) {
     let mut frame_count = 0;
     let mut last_stats_time = Instant::now();
     
+    // Preview timeout in seconds
+    const PREVIEW_TIMEOUT: u64 = 5;
+    
     loop {
         let now = Instant::now();
         let dt = now.duration_since(last_time).as_secs_f32();
         last_time = now;
         
         let mut display_guard = display.lock().await;
+        
+        // Check for preview mode timeout
+        display_guard.check_preview_timeout(PREVIEW_TIMEOUT);
         
         // Update animation state for border effects
         display_guard.update_animation_state();
@@ -371,5 +374,53 @@ pub async fn static_assets_handler(Path(path): Path<String>) -> impl IntoRespons
             warn!("Static asset not found: {}", path);
             StatusCode::NOT_FOUND.into_response()
         }
+    }
+}
+
+// New struct for preview mode state
+#[derive(Serialize, Deserialize)]
+pub struct PreviewModeState {
+    pub active: bool,
+}
+
+// Handler for starting preview mode with a content item
+pub async fn start_preview_mode(
+    State((display, _)): State<AppState>,
+    Json(preview_item): Json<DisplayContent>,
+) -> StatusCode {
+    // Display manager handles logging based on state changes
+    let mut display_guard = display.lock().await;
+    display_guard.enter_preview_mode(preview_item);
+    StatusCode::OK
+}
+
+// Handler for exiting preview mode
+pub async fn exit_preview_mode(
+    State((display, _)): State<AppState>,
+) -> StatusCode {
+    // Display manager handles logging based on state changes
+    let mut display_guard = display.lock().await;
+    display_guard.exit_preview_mode();
+    StatusCode::OK
+}
+
+// Handler for checking preview mode status
+pub async fn get_preview_mode_status(
+    State((display, _)): State<AppState>,
+) -> Json<PreviewModeState> {
+    let display_guard = display.lock().await;
+    let active = display_guard.is_in_preview_mode();
+    Json(PreviewModeState { active })
+}
+
+// Handler for pinging preview mode to keep it active
+pub async fn ping_preview_mode(
+    State((display, _)): State<AppState>,
+) -> StatusCode {
+    let mut display_guard = display.lock().await;
+    if display_guard.ping_preview_mode() {
+        StatusCode::OK
+    } else {
+        StatusCode::NOT_FOUND
     }
 } 

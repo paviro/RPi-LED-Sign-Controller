@@ -8,7 +8,7 @@ use embedded_graphics::{
 };
 use std::time::{Duration, Instant};
 use once_cell::sync::Lazy;
-use log::{info};
+use log::{info, debug};
 use rand::Rng;
 use crate::led_driver::{LedDriver, LedCanvas};
 use crate::embedded_graphics_support::EmbeddedGraphicsCanvas;
@@ -30,6 +30,10 @@ pub struct DisplayManager {
     pub border_animation_state: f32, // Animation state (0.0-1.0)
     pub last_animation_update: Instant,
     config: DisplayConfig, // Our clearer config object
+    // Add preview mode fields
+    preview_mode: bool,
+    preview_content: Option<DisplayContent>,
+    last_preview_ping: Instant,
 }
 
 impl DisplayManager {
@@ -63,6 +67,10 @@ impl DisplayManager {
             border_animation_state: 0.0,
             last_animation_update: Instant::now(),
             config: config.clone(),
+            // Initialize preview mode fields
+            preview_mode: false,
+            preview_content: None,
+            last_preview_ping: Instant::now(),
         }
     }
 
@@ -93,6 +101,10 @@ impl DisplayManager {
             border_animation_state: 0.0,
             last_animation_update: Instant::now(),
             config: config.clone(),
+            // Initialize preview mode fields
+            preview_mode: false,
+            preview_content: None,
+            last_preview_ping: Instant::now(),
         }
     }
 
@@ -102,6 +114,11 @@ impl DisplayManager {
     }
 
     pub fn get_current_content(&self) -> &DisplayContent {
+        // If we're in preview mode, show the preview content
+        if self.preview_mode && self.preview_content.is_some() {
+            return self.preview_content.as_ref().unwrap();
+        }
+        
         if self.playlist.items.is_empty() {
             // Store the default message item
             static DEFAULT_ITEM: Lazy<DisplayContent> = Lazy::new(|| {
@@ -128,6 +145,11 @@ impl DisplayManager {
     }
 
     pub fn check_transition(&mut self) -> bool {
+        // Skip transitions when in preview mode
+        if self.preview_mode {
+            return false;
+        }
+        
         // If playlist is empty, no transitions needed
         if self.playlist.items.is_empty() {
             return false;
@@ -570,6 +592,91 @@ impl DisplayManager {
         
         // Update the brightness in the config instead of the playlist
         self.config.user_brightness = brightness;
+    }
+
+    // Handle content preview with scroll position preservation where possible
+    pub fn enter_preview_mode(&mut self, content: DisplayContent) {
+        let already_in_preview = self.preview_mode;
+        self.preview_mode = true;
+        self.last_preview_ping = Instant::now();
+        
+        if already_in_preview && self.preview_content.is_some() {
+            let previous_content = self.preview_content.as_ref().unwrap();
+            
+            // Determine if we need to reset scroll position
+            let should_reset = 
+                // Reset if scroll mode changes
+                previous_content.scroll != content.scroll ||
+                // Reset if empty text becomes non-empty or vice versa
+                (previous_content.text.is_empty() != content.text.is_empty()) ||
+                // Reset if text length changes dramatically (by more than 50%)
+                (!previous_content.text.is_empty() && !content.text.is_empty() && 
+                 (previous_content.text.len() as f32 / content.text.len() as f32 > 1.5 || 
+                  content.text.len() as f32 / previous_content.text.len() as f32 > 1.5));
+                
+            if !should_reset {
+                // Silent update - preserve scroll position
+                self.preview_content = Some(content);
+                return;
+            }
+            
+            debug!("Resetting scroll position due to significant content change");
+        }
+        else if !already_in_preview {
+            // Only log once when first entering preview mode
+            info!("Entering preview mode");
+        }
+        
+        // Reset everything for new preview or significant content change
+        self.preview_content = Some(content);
+        self.scroll_position = self.display_width;
+        self.completed_scrolls = 0;
+        self.current_repeat = 0;
+        self.last_transition = Instant::now();
+    }
+
+    // Exit preview mode and return to normal playlist playback
+    pub fn exit_preview_mode(&mut self) {
+        if self.preview_mode {
+            info!("Exiting preview mode");
+            self.preview_mode = false;
+            self.preview_content = None;
+            
+            // Reset display state for normal playback
+            self.scroll_position = self.display_width;
+            self.completed_scrolls = 0;
+            self.current_repeat = 0;
+            self.last_transition = Instant::now();
+        }
+    }
+
+    // Update ping time to keep preview mode active
+    pub fn ping_preview_mode(&mut self) -> bool {
+        if self.preview_mode {
+            self.last_preview_ping = Instant::now();
+            debug!("Preview mode ping received");
+            true
+        } else {
+            false
+        }
+    }
+
+    // Check if preview mode has timed out from inactivity
+    pub fn check_preview_timeout(&mut self, timeout_seconds: u64) -> bool {
+        if self.preview_mode {
+            let elapsed = self.last_preview_ping.elapsed().as_secs();
+            if elapsed > timeout_seconds {
+                info!("Preview mode timed out after {} seconds of inactivity", elapsed);
+                self.exit_preview_mode();
+                return true;
+            }
+        }
+        false
+    }
+
+    // Check if preview mode is currently active
+    pub fn is_in_preview_mode(&self) -> bool {
+        self.preview_mode
     }
 }
 

@@ -19,7 +19,8 @@ impl Default for ContentType {
 // Structure to hold display content configuration
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DisplayContent {
-    pub id: String,             // New unique ID field
+    #[serde(default = "generate_uuid_string")]
+    pub id: String,             // ID field with default function
     pub content_type: ContentType,
     pub text: String,
     pub scroll: bool,
@@ -29,6 +30,11 @@ pub struct DisplayContent {
     pub repeat_count: u32,      // Number of times to repeat (0 = indefinite)
     pub border_effect: Option<BorderEffect>, // Optional border effect
     pub colored_segments: Option<Vec<ColoredSegment>>, // New field for multi-colored text
+}
+
+// Helper function to generate UUID strings for default values
+fn generate_uuid_string() -> String {
+    Uuid::new_v4().to_string()
 }
 
 // Optionally update the default implementation if needed
@@ -142,4 +148,10 @@ impl Serialize for BorderEffect {
             },
         }
     }
+}
+
+// New structure for preview mode state
+#[derive(Serialize, Deserialize)]
+pub struct PreviewModeState {
+    pub active: bool,
 }
