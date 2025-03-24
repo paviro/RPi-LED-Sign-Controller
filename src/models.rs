@@ -16,20 +16,51 @@ impl Default for ContentType {
     }
 }
 
+// Text formatting flags structure with explicit defaults
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct TextFormatting {
+    #[serde(default)]
+    pub bold: bool,
+    #[serde(default)]
+    pub underline: bool,
+    #[serde(default)]
+    pub strikethrough: bool,
+}
+
+// Implement default manually to be explicit
+impl Default for TextFormatting {
+    fn default() -> Self {
+        Self {
+            bold: false,
+            underline: false,
+            strikethrough: false,
+        }
+    }
+}
+
+// New structure to represent a text segment with optional formatting and color
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct TextSegment {
+    pub start: usize,  // Start index in the text (character position)
+    pub end: usize,    // End index in the text (exclusive, character position)
+    pub color: Option<(u8, u8, u8)>,   // Optional color (use parent text color if None)
+    pub formatting: Option<TextFormatting>,  // Optional formatting
+}
+
 // Structure to hold display content configuration
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DisplayContent {
     #[serde(default = "generate_uuid_string")]
     pub id: String,             // ID field with default function
     pub content_type: ContentType,
-    pub text: String,
+    pub text: String,          // Full text (for backwards compatibility)
     pub scroll: bool,
     pub color: (u8, u8, u8),    // Default text color
     pub speed: f32,             // Pixels per second
     pub duration: u64,          // Display duration in seconds (0 = indefinite)
     pub repeat_count: u32,      // Number of times to repeat (0 = indefinite)
     pub border_effect: Option<BorderEffect>, // Optional border effect
-    pub colored_segments: Option<Vec<ColoredSegment>>, // New field for multi-colored text
+    pub text_segments: Option<Vec<TextSegment>>, // New field replacing colored_segments
 }
 
 // Helper function to generate UUID strings for default values
@@ -50,7 +81,7 @@ impl Default for DisplayContent {
             duration: 10,
             repeat_count: 1,
             border_effect: None,
-            colored_segments: None,
+            text_segments: None,
         }
     }
 }
@@ -70,18 +101,6 @@ impl Default for BorderEffect {
     fn default() -> Self {
         BorderEffect::None
     }
-}
-
-// Updated structure to represent a colored segment within the text
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct ColoredSegment {
-    // Original index-based fields kept for compatibility
-    pub start: usize,  // Start index in the text
-    pub end: usize,    // End index in the text (exclusive)
-    
-    // New fields for the API
-    pub text: Option<String>,  // The text segment content
-    pub color: (u8, u8, u8),   // RGB color for this segment
 }
 
 #[derive(Clone, Serialize, Deserialize)]

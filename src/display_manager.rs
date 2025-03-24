@@ -1,4 +1,5 @@
 use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType};
+use embedded_graphics::mono_font::iso_8859_1::FONT_10X20 as FONT_10X20_LATIN1;
 use embedded_graphics::{
     mono_font::{MonoTextStyle},
     text::{Text},
@@ -14,8 +15,6 @@ use crate::led_driver::{LedDriver, LedCanvas};
 use crate::embedded_graphics_support::EmbeddedGraphicsCanvas;
 use crate::config::DisplayConfig;
 use uuid::Uuid;
-// Add this import for Unicode font
-use embedded_graphics::mono_font::iso_8859_1::{FONT_10X20 as FONT_10X20_LATIN1};
 
 // Structure to manage our LED matrix state
 pub struct DisplayManager {
@@ -137,7 +136,7 @@ impl DisplayManager {
                     duration: 0,
                     repeat_count: 0,     // Infinite repeat
                     border_effect: Some(BorderEffect::Pulse { colors: vec![(0, 255, 0), (0, 200, 0)] }), // Add a nice pulsing border
-                    colored_segments: None,
+                    text_segments: None,
                 }
             });
             &DEFAULT_ITEM
@@ -466,94 +465,118 @@ impl DisplayManager {
         // Create the embedded graphics canvas wrapper
         let mut eg_canvas = EmbeddedGraphicsCanvas::new(&mut canvas);
         
-        if current.colored_segments.is_some() && !current.colored_segments.as_ref().unwrap().is_empty() {
-            // First convert the entire text to a vector of characters for safe indexing
-            let all_chars: Vec<char> = current.text.chars().collect();
-            let segments = current.colored_segments.as_ref().unwrap();
-            
-            // Create a new vector with character-based indices
-            // Important: Interpret segment.start and segment.end as CHARACTER indices, not byte indices
-            let mut char_segments = Vec::new();
-            
-            for segment in segments {
-                // Use the indices directly as character positions, not byte positions
-                let start_char = segment.start;
-                let end_char = segment.end;
-                
-                // Only add valid segments
-                if start_char < all_chars.len() && end_char <= all_chars.len() && start_char < end_char {
-                    char_segments.push((start_char, end_char, segment.color));
-                }
-            }
-            
-            // Sort segments by start position
-            char_segments.sort_by_key(|s| s.0);
-            
-            // Render segments with gaps between them
-            let mut last_end_char = 0;
-            
-            for (start_char, end_char, color) in char_segments {
-                // Render any text before this segment with default color if needed
-                if start_char > last_end_char {
-                    let default_segment: String = all_chars[last_end_char..start_char].iter().collect();
-                    
-                    let x_pos = if current.scroll {
-                        position + (last_end_char as i32 * 10)
-                    } else {
-                        (self.display_width - self.text_width) / 2 + (last_end_char as i32 * 10)
-                    };
-                    
-                    Text::new(&default_segment, Point::new(x_pos, vertical_position), default_text_style)
-                        .draw(&mut eg_canvas)
-                        .unwrap();
-                }
-                
-                // Render the colored segment
-                let segment_text: String = all_chars[start_char..end_char].iter().collect();
-                
-                // Apply brightness scaling to segment color
-                let (sr, sg, sb) = self.apply_brightness(color);
-                let segment_style = MonoTextStyle::new(&FONT_10X20_LATIN1, Rgb888::new(sr, sg, sb));
-                
-                let x_pos = if current.scroll {
-                    position + (start_char as i32 * 10)
+        if let Some(segments) = &current.text_segments {
+            if !segments.is_empty() {
+                // Render each text segment with its specific formatting
+                let mut x_pos = if current.scroll {
+                    position
                 } else {
-                    (self.display_width - self.text_width) / 2 + (start_char as i32 * 10)
+                    (self.display_width - self.text_width) / 2
                 };
                 
-                Text::new(&segment_text, Point::new(x_pos, vertical_position), segment_style)
-                    .draw(&mut eg_canvas)
-                    .unwrap();
+                // Collect formatting data to apply after text rendering
+                let mut formatting_effects = Vec::new();
                 
-                last_end_char = end_char;
-            }
-            
-            // Render any remaining text with default color
-            if last_end_char < all_chars.len() {
-                let remaining_text: String = all_chars[last_end_char..].iter().collect();
+                // First pass: render all text
+                for segment in segments {
+                    // Apply brightness scaling to segment color
+                    // Use the segment color if specified, otherwise fall back to the default text color
+                    let segment_color = segment.color.unwrap_or(current.color);
+                    let (sr, sg, sb) = self.apply_brightness(segment_color);
+                    
+                    // Always use the same font for consistent sizing
+                    let font = &FONT_10X20_LATIN1;
+                    let segment_style = MonoTextStyle::new(font, Rgb888::new(sr, sg, sb));
+                    
+                    // Extract the segment text from the main content text
+                    // Convert the full text to a vector of characters for safe indexing
+                    let chars: Vec<char> = current.text.chars().collect();
+                    
+                    // Make sure indices are within bounds
+                    let start = segment.start.min(chars.len());
+                    let end = segment.end.min(chars.len());
+                    
+                    if start < end {
+                        // Get the text for this segment
+                        let segment_text: String = chars[start..end].iter().collect();
+                        
+                        // Calculate segment width consistently
+                        let segment_width = (end - start) as i32 * 10;
+                        
+                        // Check for bold formatting if formatting exists
+                        let has_bold = segment.formatting.as_ref().map_or(false, |fmt| fmt.bold);
+                        
+                        // Render the text
+                        if has_bold {
+                            // Draw text twice with a 1px offset to create a bold effect
+                            Text::new(&segment_text, Point::new(x_pos + 1, vertical_position), segment_style)
+                                .draw(&mut eg_canvas)
+                                .unwrap();
+                        }
+                        Text::new(&segment_text, Point::new(x_pos, vertical_position), segment_style)
+                            .draw(&mut eg_canvas)
+                            .unwrap();
+                        
+                        // Store formatting data for later processing
+                        let has_underline = segment.formatting.as_ref().map_or(false, |fmt| fmt.underline);
+                        let has_strikethrough = segment.formatting.as_ref().map_or(false, |fmt| fmt.strikethrough);
+                        
+                        if has_underline || has_strikethrough {
+                            formatting_effects.push((
+                                x_pos,
+                                segment_width,
+                                (sr, sg, sb),  // Store segment color for reference
+                                has_underline,
+                                has_strikethrough
+                            ));
+                        }
+                        
+                        // Move x position for next segment
+                        x_pos += segment_width;
+                    }
+                }
                 
-                let x_pos = if current.scroll {
-                    position + (last_end_char as i32 * 10)
-                } else {
-                    (self.display_width - self.text_width) / 2 + (last_end_char as i32 * 10)
-                };
+                // Drop eg_canvas to release mutable borrow on canvas
+                drop(eg_canvas);
                 
-                Text::new(&remaining_text, Point::new(x_pos, vertical_position), default_text_style)
-                    .draw(&mut eg_canvas)
-                    .unwrap();
+                // Second pass: apply underline and strikethrough effects directly to canvas
+                for (x_pos, width, (r, g, b), is_underline, is_strikethrough) in formatting_effects {
+                    if is_underline {
+                        // Draw line 1px below text
+                        let underline_y = vertical_position + 3;
+                        for i in 0..width {
+                            canvas.set_pixel((x_pos + i) as usize, underline_y as usize, r, g, b);
+                        }
+                    }
+                    
+                    if is_strikethrough {
+                        // Get strikethrough color - red for white text, white for everything else
+                        let (strike_r, strike_g, strike_b) = get_smooth_strikethrough_color(r, g, b);
+                        
+                        // Draw line through text - two pixels high for better visibility
+                        let strike_y1 = vertical_position - font_height/5; 
+                        let strike_y2 = strike_y1 - 1; // Second line one pixel above
+                        
+                        for i in 0..width {
+                            // Draw two pixels in height
+                            canvas.set_pixel((x_pos + i) as usize, strike_y1 as usize, strike_r, strike_g, strike_b);
+                            canvas.set_pixel((x_pos + i) as usize, strike_y2 as usize, strike_r, strike_g, strike_b);
+                        }
+                    }
+                }
             }
-        } else {
-            // Render text with a single color
-            if current.scroll {
-                Text::new(&current.text, Point::new(position, vertical_position), default_text_style)
-                    .draw(&mut eg_canvas)
-                    .unwrap();
-            } else {
-                let x = (self.display_width - self.text_width) / 2;
-                Text::new(&current.text, Point::new(x, vertical_position), default_text_style)
-                    .draw(&mut eg_canvas)
-                    .unwrap();
+            else {
+                // Fallback to regular text rendering if segments list is empty
+                self.render_unsegmented_text(&mut eg_canvas, &current, position, vertical_position, &default_text_style);
+                // Drop eg_canvas to release borrow
+                drop(eg_canvas);
             }
+        }
+        else {
+            // No segments defined, render normal text
+            self.render_unsegmented_text(&mut eg_canvas, &current, position, vertical_position, &default_text_style);
+            // Drop eg_canvas to release borrow
+            drop(eg_canvas);
         }
         
         // Draw border effect with brightness scaling
@@ -566,6 +589,27 @@ impl DisplayManager {
         // Use our driver to update the canvas
         let updated_canvas = self.driver.update_canvas(canvas);
         self.canvas = Some(updated_canvas);
+    }
+    
+    // Helper method to render text without segments
+    fn render_unsegmented_text(
+        &self, 
+        eg_canvas: &mut EmbeddedGraphicsCanvas, 
+        content: &DisplayContent,
+        position: i32,
+        vertical_position: i32,
+        text_style: &MonoTextStyle<Rgb888>
+    ) {
+        if content.scroll {
+            Text::new(&content.text, Point::new(position, vertical_position), *text_style)
+                .draw(eg_canvas)
+                .unwrap();
+        } else {
+            let x = (self.display_width - self.text_width) / 2;
+            Text::new(&content.text, Point::new(x, vertical_position), *text_style)
+                .draw(eg_canvas)
+                .unwrap();
+        }
     }
 
     // Add a method to check if the playlist is empty
@@ -746,5 +790,57 @@ fn get_local_ip() -> Option<String> {
             None
         },
         Err(_) => None
+    }
+}
+
+// Function that determines strikethrough color based on text color
+fn get_smooth_strikethrough_color(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
+    // Check if we're in grayscale mode (R≈G≈B)
+    let is_grayscale = (r as i16 - g as i16).abs() < 20 && 
+                       (g as i16 - b as i16).abs() < 20 && 
+                       (r as i16 - b as i16).abs() < 20;
+    
+    // For grayscale colors (white to gray to black), use red
+    if is_grayscale {
+        return (255, 0, 0);
+    }
+    
+    // Check if the color is in the red family where G≈B
+    let g_equals_b = (g as i16 - b as i16).abs() < 20;
+    
+    if g_equals_b && r > g + 30 {
+        // This is a true red family color (red with equal G and B components)
+        // Calculate the blend factor based on red's dominance
+        
+        // Use a ratio to determine how red-dominant the color is
+        let red_ratio = r as f32 / (r as f32 + g as f32 + b as f32);
+        
+        // For bright red colors (like 255,0,0), we want white strikethrough
+        // For pinkish colors (like 255,200,200), we want red strikethrough
+        let blend_factor = ((red_ratio - 0.4) * 2.5).min(1.0).max(0.0);
+        
+        // Create a color between red and white (white for strong reds)
+        let strike_r = 255;
+        let strike_g = (blend_factor * 255.0) as u8;
+        let strike_b = (blend_factor * 255.0) as u8;
+        
+        (strike_r, strike_g, strike_b)
+    } 
+    // Handle mid-gray to mid-red axis (like 139,139,139 to 139,0,0)
+    else if g_equals_b && r > g {
+        // Similar logic but for mid-range colors
+        let red_ratio = r as f32 / (r as f32 + g as f32 + b as f32);
+        
+        // Use the same calculation as for bright reds
+        let blend_factor = ((red_ratio - 0.4) * 2.5).min(1.0).max(0.0);
+        
+        let strike_r = 255;
+        let strike_g = (blend_factor * 255.0) as u8;
+        let strike_b = (blend_factor * 255.0) as u8;
+        
+        (strike_r, strike_g, strike_b)
+    } else {
+        // For all other colors, use white strikethrough
+        (255, 255, 255)
     }
 } 
