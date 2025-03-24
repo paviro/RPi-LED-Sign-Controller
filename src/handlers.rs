@@ -263,7 +263,7 @@ pub async fn display_loop(display: Arc<Mutex<DisplayManager>>) {
             last_stats_time = now;
         }
         
-        tokio::time::sleep(Duration::from_millis(8)).await;
+        tokio::time::sleep(Duration::from_millis(2)).await;
     }
 }
 
