@@ -8,6 +8,7 @@ mod led_driver;
 mod embedded_graphics_support;
 mod config;
 mod privilege;
+mod renderer;
 
 use crate::app_storage::{create_storage};
 use crate::led_driver::create_driver;

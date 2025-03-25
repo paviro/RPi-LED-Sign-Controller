@@ -216,9 +216,4 @@ impl DisplayConfig {
             Err(errors)
         }
     }
-    
-    /// Get effective brightness
-    pub fn get_effective_brightness(&self) -> f32 {
-        self.user_brightness as f32 / 100.0
-    }
 } 

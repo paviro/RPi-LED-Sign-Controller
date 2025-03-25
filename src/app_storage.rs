@@ -28,7 +28,12 @@ impl AppStorage {
                 match serde_json::from_str::<Playlist>(&contents) {
                     Ok(playlist) => {
                         info!("Successfully loaded playlist with {} items", playlist.items.len());
-                        Some(playlist)
+                        if let Some(mut playlist) = Some(playlist) {
+                            playlist.active_index = 0;
+                            Some(playlist)
+                        } else {
+                            None
+                        }
                     }
                     Err(e) => {
                         error!("Error parsing playlist file: {}", e);
@@ -87,7 +92,7 @@ impl AppStorage {
                 
                 match serde_json::from_str::<BrightnessSetting>(&contents) {
                     Ok(setting) => {
-                        info!("Loaded brightness setting: {}", setting.brightness);
+                        info!("Loaded brightness setting: {}%", setting.brightness);
                         Some(setting.brightness)
                     }
                     Err(e) => {
@@ -103,8 +108,8 @@ impl AppStorage {
         }
     }
     
-    pub fn save_brightness(&self, brightness: u8) -> bool {
-        debug!("Saving brightness setting: {}", brightness);
+    pub fn save_brightness(&self, brightness: u8) {
+        debug!("Saving brightness setting: {}%", brightness);
         
         #[derive(serde::Serialize)]
         struct BrightnessSetting {
@@ -117,18 +122,15 @@ impl AppStorage {
             Ok(json) => {
                 match self.storage_manager.write_file(paths::BRIGHTNESS_FILE, &json) {
                     Ok(_) => {
-                        info!("Brightness saved: {}", brightness);
-                        true
+                        info!("Brightness saved: {}%", brightness);
                     }
                     Err(e) => {
                         error!("Error writing brightness file: {}", e);
-                        false
                     }
                 }
             }
             Err(e) => {
                 error!("Error serializing brightness: {}", e);
-                false
             }
         }
     }

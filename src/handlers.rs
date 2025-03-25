@@ -3,21 +3,21 @@ use axum::{
     response::{Json, Html, IntoResponse},
     http::{header, StatusCode},
 };
-use std::{sync::Arc, time::{Duration, Instant}};
-use tokio::sync::Mutex;
+use std::{sync::Arc, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 use log::{info, error, debug, warn};
 use crate::static_assets::StaticAssets;
 use mime_guess;
 use serde::{Serialize, Deserialize};
+use std::sync::atomic::{AtomicU8, AtomicI64, Ordering, AtomicBool};
 
 use crate::{
     display_manager::DisplayManager,
-    models::{DisplayContent, BrightnessSettings, ReorderRequest, ContentDetails, TextContent},
+    models::{DisplayContent, BrightnessSettings, ReorderRequest, ContentDetails},
     app_storage::SharedStorage,
 };
 
 // Type alias for our application state
-type AppState = (Arc<Mutex<DisplayManager>>, SharedStorage);
+type AppState = (Arc<tokio::sync::Mutex<DisplayManager>>, SharedStorage);
 
 // Handler for getting all playlist items
 pub async fn get_playlist_items(
@@ -187,21 +187,9 @@ pub async fn reorder_playlist_items(
     Ok(Json(new_items))
 }
 
-// Add this helper method to DisplayManager
-impl DisplayManager {
-    pub fn reset_display_state(&mut self) {
-        // Reset the display state to start fresh with current item
-        self.last_transition = Instant::now();
-        self.current_repeat = 0;
-        self.completed_scrolls = 0;
-        self.scroll_position = self.display_width;
-    }
-}
-
-// Display loop handler - this is where the scroll logic was updated
-pub async fn display_loop(display: Arc<Mutex<DisplayManager>>) {
+// Display loop function that manages the update cycle
+pub async fn display_loop(display: Arc<tokio::sync::Mutex<DisplayManager>>) {
     info!("Starting display update loop");
-    let mut accumulated_time: f32 = 0.0;
     let mut last_time = Instant::now();
     let mut frame_count = 0;
     let mut last_stats_time = Instant::now();
@@ -219,51 +207,34 @@ pub async fn display_loop(display: Arc<Mutex<DisplayManager>>) {
         // Check for preview mode timeout
         display_guard.check_preview_timeout(PREVIEW_TIMEOUT);
         
-        // Update animation state for border effects
-        display_guard.update_animation_state();
-        
-        // Check if we need to transition to next item
+        // Check if transition to next item is needed
         let transition_occurred = display_guard.check_transition();
         if transition_occurred {
-            // Reset happens in check_transition and advance_playlist
-            info!("Transitioned to next display item");
+            let current = display_guard.get_current_content();
+            let index = display_guard.playlist.active_index;
+            let total = display_guard.playlist.items.len();
+            
+            // Get content description
+            let content_desc = match &current.content.data {
+                ContentDetails::Text(text_content) => {
+                    let preview = if text_content.text.len() > 30 {
+                        format!("{}...", &text_content.text[..27])
+                    } else {
+                        text_content.text.clone()
+                    };
+                    format!("Text: \"{}\"", preview)
+                },
+                // Add other content types here as needed
+            };
+            
+            info!("Transitioned to playlist item {} of {}: {}", index + 1, total, content_desc);
         }
         
-        let current = display_guard.get_current_content().clone();
-        #[allow(irrefutable_let_patterns)]
-        if let ContentDetails::Text(text_content) = &current.content.data {
-            if text_content.scroll {
-                accumulated_time += dt;
-                let pixels_to_move = (accumulated_time * text_content.speed) as i32;
-                if pixels_to_move > 0 {
-                    display_guard.scroll_position -= pixels_to_move;
-                    accumulated_time = 0.0;
-                    
-                    // Reset position when text is off screen
-                    if display_guard.scroll_position < -display_guard.text_width {
-                        display_guard.scroll_position = display_guard.display_width;
-                        display_guard.completed_scrolls += 1;  // Increment completed scroll count
-                        
-                        // Log the completion based on which field is set
-                        match current.repeat_count {
-                            Some(count) => {
-                                info!("Completed scroll cycle {} of {}", 
-                                    display_guard.completed_scrolls, 
-                                    if count == 0 { "infinite".to_string() } else { count.to_string() });
-                            },
-                            None => {
-                                // When using duration, we just log the scroll cycle
-                                info!("Completed scroll cycle {}", display_guard.completed_scrolls);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // Update the renderers with the elapsed time
+        display_guard.update_renderer(dt);
         
-        // Get the position value first before calling update_display
-        let position = display_guard.scroll_position;
-        display_guard.update_display(position);
+        // Update the display 
+        display_guard.update_display();
         
         drop(display_guard);
         
@@ -316,17 +287,78 @@ pub async fn update_brightness(
     State((display, storage)): State<AppState>,
     Json(settings): Json<BrightnessSettings>,
 ) -> Json<BrightnessSettings> {
-    debug!("Updating brightness to {}", settings.brightness);
+    // Initialize static variables on first call
+    static INITIALIZED: AtomicBool = AtomicBool::new(false);
+    static LAST_BRIGHTNESS: AtomicU8 = AtomicU8::new(0);
+    static LAST_UPDATE_TIME: AtomicI64 = AtomicI64::new(0);
+    static SAVE_PENDING: AtomicBool = AtomicBool::new(false);
+    static LATEST_TASK_ID: AtomicI64 = AtomicI64::new(0);
     
+    // Get current timestamp in milliseconds
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+    
+    // Always update the display immediately
     let mut display = display.lock().await;
     
-    // Apply brightness scaling through DisplayManager's method
+    // Initialize the static variable on first call
+    if !INITIALIZED.load(Ordering::SeqCst) {
+        LAST_BRIGHTNESS.store(display.get_brightness(), Ordering::SeqCst);
+        INITIALIZED.store(true, Ordering::SeqCst);
+    }
+    
     display.set_brightness(settings.brightness);
     
-    // Save the brightness setting for persistence across restarts
-    let storage_guard = storage.lock().unwrap();
-    if !storage_guard.save_brightness(settings.brightness) {
-        error!("Failed to save brightness setting");
+    // Update tracking for brightness
+    let prev_brightness = LAST_BRIGHTNESS.swap(settings.brightness, Ordering::SeqCst);
+    LAST_UPDATE_TIME.store(now, Ordering::SeqCst);
+    
+    // If brightness changed, mark save as pending
+    if prev_brightness != settings.brightness {
+        SAVE_PENDING.store(true, Ordering::SeqCst);
+        
+        // Only log if brightness changed by more than 10 or is at min/max
+        if (settings.brightness as i16 - prev_brightness as i16).abs() >= 10 ||
+           settings.brightness == 0 || settings.brightness == 100 {
+            // Add more descriptive logging with percentages
+            info!("Display brightness: {}% -> {}%", prev_brightness, settings.brightness);
+        }
+        
+        // Get current brightness for the task
+        let brightness = settings.brightness;
+        
+        // Clone storage for use in the task
+        let storage_clone = storage.clone();
+        
+        // Increment the task ID and get its value
+        let task_id = LATEST_TASK_ID.fetch_add(1, Ordering::SeqCst) + 1;
+        
+        tokio::spawn(async move {
+            // Wait 1 second
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+            
+            // Check if there have been no updates during our waiting period
+            let last_update = LAST_UPDATE_TIME.load(Ordering::SeqCst);
+            let time_passed = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as i64 - last_update;
+            
+            // Only save if this is still the latest task and save is pending
+            let is_latest = LATEST_TASK_ID.load(Ordering::SeqCst) == task_id;
+            
+            // If no updates for ~1 second, save is still pending, and this is the latest task
+            if time_passed >= 950 && SAVE_PENDING.load(Ordering::SeqCst) && is_latest {
+                // Reset pending flag
+                SAVE_PENDING.store(false, Ordering::SeqCst);
+                
+                if let Ok(storage_guard) = storage_clone.lock() {
+                    storage_guard.save_brightness(brightness);
+                }
+            }
+        });
     }
     
     // Return the updated settings
@@ -396,16 +428,6 @@ pub struct PreviewModeState {
     pub active: bool,
 }
 
-// Add #[allow(dead_code)] to functions not currently used
-#[allow(dead_code)]
-fn extract_text_content(content: &DisplayContent) -> Option<&TextContent> {
-    match &content.content.data {
-        ContentDetails::Text(text_content) => Some(text_content),
-        #[allow(unreachable_patterns)]
-        _ => None,
-    }
-}
-
 // Handler for exiting preview mode
 pub async fn exit_preview_mode(
     State((display, _)): State<AppState>,
@@ -430,7 +452,8 @@ pub async fn ping_preview_mode(
     State((display, _)): State<AppState>,
 ) -> StatusCode {
     let mut display_guard = display.lock().await;
-    if display_guard.ping_preview_mode() {
+    
+    if display_guard.update_preview_ping() {
         StatusCode::OK
     } else {
         StatusCode::NOT_FOUND

@@ -91,6 +91,23 @@ impl<'de> Deserialize<'de> for DisplayContent {
             _ => {} // Exactly one is provided, which is valid
         }
 
+        // Check for consistent configuration between scroll and duration/repeat_count
+        match &helper.content.data {
+            ContentDetails::Text(text_content) => {
+                if !text_content.scroll && helper.repeat_count.is_some() {
+                    return Err(serde::de::Error::custom(
+                        "When 'scroll' is false, 'duration' must be used instead of 'repeat_count'"
+                    ));
+                }
+                if text_content.scroll && helper.duration.is_some() {
+                    return Err(serde::de::Error::custom(
+                        "When 'scroll' is true, 'repeat_count' must be used instead of 'duration'"
+                    ));
+                }
+            },
+            // Handle other content types as needed
+        }
+
         // Extract the text content - using match instead of if let to prepare for future types
         let requires_repeat_count = match &helper.content.data {
             ContentDetails::Text(text_content) => text_content.scroll,

@@ -14,6 +14,11 @@ impl<'a> EmbeddedGraphicsCanvas<'a> {
     pub fn new(canvas: &'a mut Box<dyn LedCanvas>) -> Self {
         Self { canvas }
     }
+
+    // Add a method to get mutable access to the underlying canvas
+    pub fn inner_mut(&mut self) -> &mut Box<dyn LedCanvas> {
+        &mut self.canvas
+    }
 }
 
 impl<'a> DrawTarget for EmbeddedGraphicsCanvas<'a> {
