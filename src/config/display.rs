@@ -1,6 +1,6 @@
 //! Display configuration structure and methods
 
-use crate::led_driver::DriverType;
+use crate::display::driver::DriverType;
 use log::info;
 use super::{CliArgs, EnvVars};
 

@@ -1,4 +1,4 @@
-use crate::led_driver::LedCanvas;
+use crate::display::driver::LedCanvas;
 use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::Size,

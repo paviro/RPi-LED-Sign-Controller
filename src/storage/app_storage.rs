@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
-use crate::models::Playlist;
-use crate::storage_manager::{StorageManager, paths};
+use crate::models::playlist::Playlist;
+use crate::storage::manager::{StorageManager, paths};
 use log::{info, error, debug};
 
 // Unified storage for all application settings

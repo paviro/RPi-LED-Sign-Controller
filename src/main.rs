@@ -1,31 +1,23 @@
-mod display_manager;
-mod handlers;
+mod display;
 mod models;
-mod static_assets;
-mod app_storage;
-mod storage_manager;
-mod led_driver;
-mod embedded_graphics_support;
+mod storage;
 mod config;
-mod privilege;
-mod renderer;
+mod utils;
+mod web;
 
-use crate::app_storage::{create_storage};
-use crate::led_driver::create_driver;
-use crate::privilege::{check_root_privileges, drop_privileges};
-
+use crate::storage::app_storage::create_storage;
+use crate::display::driver::create_driver;
+use crate::utils::privilege::{check_root_privileges, drop_privileges};
+use crate::display::update_loop::display_loop;
+use crate::web::api::playlist::{get_playlist_items, create_playlist_item, get_playlist_item, update_playlist_item, delete_playlist_item, reorder_playlist_items};
+use crate::web::api::settings::{get_brightness, update_brightness};
+use crate::web::api::preview::{start_preview_mode, exit_preview_mode, get_preview_mode_status, ping_preview_mode};
+use crate::web::static_assets::{index_handler, next_assets_handler, static_assets_handler};
 use axum::{
     routing::{post, get, put, delete},
     Router,
 };
-use display_manager::DisplayManager;
-use handlers::{
-    index_handler, display_loop, get_brightness, update_brightness, 
-    get_playlist_items, create_playlist_item, get_playlist_item, 
-    update_playlist_item, delete_playlist_item, reorder_playlist_items,
-    start_preview_mode, exit_preview_mode, get_preview_mode_status,
-    ping_preview_mode
-};
+use display::manager::DisplayManager;
 use std::{sync::Arc, net::SocketAddr};
 use tokio::sync::Mutex;
 use log::{info, warn, error, debug, LevelFilter};
@@ -207,8 +199,8 @@ async fn main() {
     // Simplified static assets setup
     let app = Router::new()
         .route("/", get(index_handler))
-        .route("/_next/*path", get(handlers::next_assets_handler))
-        .route("/static/*path", get(handlers::static_assets_handler))
+        .route("/_next/*path", get(next_assets_handler))
+        .route("/static/*path", get(static_assets_handler))
         .nest("", api_routes);
     
     let ip_addr = display_config.interface.parse::<std::net::IpAddr>()

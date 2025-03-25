@@ -1,11 +1,14 @@
-use crate::models::{DisplayContent, Playlist, BorderEffect, ContentType, ContentData, TextContent, ContentDetails};
-use std::time::{Instant};
+use crate::models::border_effects::BorderEffect;
+use crate::models::content::{ContentType, ContentData, ContentDetails};
+use crate::models::text::TextContent;
+use crate::models::playlist::{Playlist, PlayListItem};
+use std::time::Instant;
 use once_cell::sync::Lazy;
 use log::{info, debug};
-use crate::led_driver::{LedDriver, LedCanvas};
+use crate::display::driver::{LedDriver, LedCanvas};
 use crate::config::DisplayConfig;
 use uuid::Uuid;
-use crate::renderer::{Renderer, RenderContext, create_renderer, create_border_renderer};
+use crate::display::renderer::{Renderer, RenderContext, create_renderer, create_border_renderer};
 
 // Structure to manage LED matrix state
 pub struct DisplayManager {
@@ -18,7 +21,7 @@ pub struct DisplayManager {
     pub current_repeat: u32,
     config: DisplayConfig,
     preview_mode: bool,
-    preview_content: Option<DisplayContent>,
+    preview_content: Option<PlayListItem>,
     last_preview_ping: Instant,
     active_renderer: Option<Box<dyn Renderer>>,
     border_renderer: Option<Box<dyn Renderer>>,
@@ -111,7 +114,7 @@ impl DisplayManager {
         display_manager
     }
 
-    pub fn get_current_content(&self) -> &DisplayContent {
+    pub fn get_current_content(&self) -> &PlayListItem {
         // If we're in preview mode, show the preview content
         if self.preview_mode && self.preview_content.is_some() {
             return self.preview_content.as_ref().unwrap();
@@ -119,11 +122,11 @@ impl DisplayManager {
         
         if self.playlist.items.is_empty() {
             // Store the default message item
-            static DEFAULT_ITEM: Lazy<DisplayContent> = Lazy::new(|| {
+            static DEFAULT_ITEM: Lazy<PlayListItem> = Lazy::new(|| {
                 // Get the local IP for a more helpful message
                 let ip = get_local_ip().unwrap_or_else(|| "localhost".to_string());
                 
-                DisplayContent {
+                PlayListItem {
                     id: Uuid::new_v4().to_string(),
                     duration: None,                   // Updated to use None
                     repeat_count: Some(0),            // Infinite repeat with Some(0)
@@ -324,7 +327,7 @@ impl DisplayManager {
     }
 
     // Handle content preview with scroll position preservation where possible
-    pub fn enter_preview_mode(&mut self, content: DisplayContent) {
+    pub fn enter_preview_mode(&mut self, content: PlayListItem) {
         let already_in_preview = self.preview_mode;
         self.preview_mode = true;
         self.last_preview_ping = Instant::now();

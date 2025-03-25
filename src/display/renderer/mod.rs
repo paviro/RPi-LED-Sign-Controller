@@ -6,13 +6,14 @@ pub use text::TextRenderer;
 pub use border::BorderRenderer;
 pub use context::RenderContext;
 
-use crate::models::{DisplayContent, ContentType, ContentDetails};
-use crate::led_driver::LedCanvas;
+use crate::models::content::{ContentType, ContentDetails};
+use crate::models::playlist::PlayListItem;
+use crate::display::driver::LedCanvas;
 
 /// Core Renderer trait that all content-specific renderers must implement
 pub trait Renderer: Send + Sync {
     /// Initialize a new renderer instance with content and context
-    fn new(content: &DisplayContent, ctx: RenderContext) -> Self where Self: Sized;
+    fn new(content: &PlayListItem, ctx: RenderContext) -> Self where Self: Sized;
     
     /// Update renderer state based on elapsed time
     fn update(&mut self, dt: f32);
@@ -32,11 +33,11 @@ pub trait Renderer: Send + Sync {
     fn update_context(&mut self, ctx: RenderContext);
     
     /// Update the renderer's content without fully resetting animation state
-    fn update_content(&mut self, content: &DisplayContent);
+    fn update_content(&mut self, content: &PlayListItem);
 }
 
 /// Factory function to create the appropriate content renderer based on content type
-pub fn create_renderer(content: &DisplayContent, ctx: RenderContext) -> Box<dyn Renderer> {
+pub fn create_renderer(content: &PlayListItem, ctx: RenderContext) -> Box<dyn Renderer> {
     match content.content.content_type {
         ContentType::Text => {
             match &content.content.data {
@@ -52,6 +53,6 @@ pub fn create_renderer(content: &DisplayContent, ctx: RenderContext) -> Box<dyn 
 }
 
 /// Create a border renderer for the given content
-pub fn create_border_renderer(content: &DisplayContent, ctx: RenderContext) -> Box<dyn Renderer> {
+pub fn create_border_renderer(content: &PlayListItem, ctx: RenderContext) -> Box<dyn Renderer> {
     Box::new(BorderRenderer::new(content, ctx))
 } 

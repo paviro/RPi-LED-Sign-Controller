@@ -1,7 +1,9 @@
-use crate::models::{DisplayContent, ContentDetails, TextContent, TextSegment};
-use crate::led_driver::LedCanvas;
-use crate::embedded_graphics_support::EmbeddedGraphicsCanvas;
-use crate::renderer::{Renderer, RenderContext};
+use crate::models::content::ContentDetails;
+use crate::models::text::{TextContent, TextSegment};
+use crate::models::playlist::PlayListItem;
+use crate::display::driver::LedCanvas;
+use crate::display::graphics::embedded_graphics_support::EmbeddedGraphicsCanvas;
+use crate::display::renderer::{Renderer, RenderContext};
 use embedded_graphics::mono_font::iso_8859_1::FONT_10X20 as FONT_10X20_LATIN1;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::text::Text;
@@ -9,7 +11,7 @@ use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::Drawable;
 use std::time::Instant;
-use log::{debug};
+use log::debug;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub struct TextRenderer {
@@ -45,7 +47,7 @@ pub struct TextRenderer {
 }
 
 impl Renderer for TextRenderer {
-    fn new(content: &DisplayContent, ctx: RenderContext) -> Self {
+    fn new(content: &PlayListItem, ctx: RenderContext) -> Self {
         // Extract the text content from the display content
         let text_content = match &content.content.data {
             ContentDetails::Text(tc) => tc.clone(),
@@ -159,7 +161,7 @@ impl Renderer for TextRenderer {
         self.ctx = ctx;
     }
     
-    fn update_content(&mut self, content: &DisplayContent) {
+    fn update_content(&mut self, content: &PlayListItem) {
         // Extract the new text content
         let new_text_content = match &content.content.data {
             ContentDetails::Text(tc) => tc.clone(),

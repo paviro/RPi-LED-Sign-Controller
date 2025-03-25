@@ -1,6 +1,7 @@
-use crate::models::{DisplayContent, BorderEffect};
-use crate::led_driver::LedCanvas;
-use crate::renderer::{Renderer, RenderContext};
+use crate::models::border_effects::BorderEffect;
+use crate::models::playlist::PlayListItem;
+use crate::display::driver::LedCanvas;
+use crate::display::renderer::{Renderer, RenderContext};
 use std::time::Instant;
 
 pub struct BorderRenderer {
@@ -18,7 +19,7 @@ pub struct BorderRenderer {
 }
 
 impl Renderer for BorderRenderer {
-    fn new(content: &DisplayContent, ctx: RenderContext) -> Self {
+    fn new(content: &PlayListItem, ctx: RenderContext) -> Self {
         // Extract the border effect from the content, or use None if not specified
         let effect = content.border_effect.clone().unwrap_or(BorderEffect::None);
         
@@ -76,7 +77,7 @@ impl Renderer for BorderRenderer {
         self.ctx = ctx;
     }
     
-    fn update_content(&mut self, content: &DisplayContent) {
+    fn update_content(&mut self, content: &PlayListItem) {
         // Get the new border effect (or None)
         let new_effect = content.border_effect.clone().unwrap_or(BorderEffect::None);
         
