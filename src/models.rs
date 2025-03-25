@@ -48,14 +48,70 @@ pub struct TextSegment {
 }
 
 // Base structure for all display content items
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize)]
 pub struct DisplayContent {
     #[serde(default = "generate_uuid_string")]
     pub id: String,
-    pub duration: u64,          // Display duration in seconds (0 = indefinite)
-    pub repeat_count: u32,      // Number of times to repeat (0 = indefinite)
+    pub duration: Option<u64>,      // Display duration in seconds (None = use repeat_count instead)
+    pub repeat_count: Option<u32>,  // Number of times to repeat (None = use duration instead)
     pub border_effect: Option<BorderEffect>, // Optional border effect
     pub content: ContentData,
+}
+
+// Custom deserialization to enforce mutual exclusivity and scroll validation
+impl<'de> Deserialize<'de> for DisplayContent {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct Helper {
+            #[serde(default = "generate_uuid_string")]
+            id: String,
+            duration: Option<u64>,
+            repeat_count: Option<u32>,
+            border_effect: Option<BorderEffect>,
+            content: ContentData,
+        }
+
+        let helper = Helper::deserialize(deserializer)?;
+
+        // Check that exactly one of duration or repeat_count is provided
+        match (helper.duration, helper.repeat_count) {
+            (Some(_), Some(_)) => {
+                return Err(serde::de::Error::custom(
+                    "Both 'duration' and 'repeat_count' cannot be provided together"
+                ));
+            }
+            (None, None) => {
+                return Err(serde::de::Error::custom(
+                    "Either 'duration' or 'repeat_count' must be provided"
+                ));
+            }
+            _ => {} // Exactly one is provided, which is valid
+        }
+
+        // Extract the text content - using match instead of if let to prepare for future types
+        let requires_repeat_count = match &helper.content.data {
+            ContentDetails::Text(text_content) => text_content.scroll,
+            // Add future content types here
+        };
+
+        // Check if repeat_count is required but missing
+        if requires_repeat_count && helper.repeat_count.is_none() {
+            return Err(serde::de::Error::custom(
+                "When 'scroll' is true, 'repeat_count' must be used instead of 'duration'"
+            ));
+        }
+
+        Ok(DisplayContent {
+            id: helper.id,
+            duration: helper.duration,
+            repeat_count: helper.repeat_count,
+            border_effect: helper.border_effect,
+            content: helper.content,
+        })
+    }
 }
 
 // Tagged union approach for different content types
@@ -94,8 +150,8 @@ impl Default for DisplayContent {
     fn default() -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
-            duration: 10,
-            repeat_count: 1,
+            duration: Some(10),    // Default to 10 seconds duration
+            repeat_count: None,    // No repeat count by default (exclusive with duration)
             border_effect: None,
             content: ContentData {
                 content_type: ContentType::Text,

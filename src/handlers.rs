@@ -243,10 +243,19 @@ pub async fn display_loop(display: Arc<Mutex<DisplayManager>>) {
                     if display_guard.scroll_position < -display_guard.text_width {
                         display_guard.scroll_position = display_guard.display_width;
                         display_guard.completed_scrolls += 1;  // Increment completed scroll count
-                        info!("Completed scroll cycle {} of {}", 
-                             display_guard.completed_scrolls, 
-                             if current.repeat_count == 0 { "infinite".to_string() } 
-                             else { current.repeat_count.to_string() });
+                        
+                        // Log the completion based on which field is set
+                        match current.repeat_count {
+                            Some(count) => {
+                                info!("Completed scroll cycle {} of {}", 
+                                    display_guard.completed_scrolls, 
+                                    if count == 0 { "infinite".to_string() } else { count.to_string() });
+                            },
+                            None => {
+                                // When using duration, we just log the scroll cycle
+                                info!("Completed scroll cycle {}", display_guard.completed_scrolls);
+                            }
+                        }
                     }
                 }
             }

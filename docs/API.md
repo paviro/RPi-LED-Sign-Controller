@@ -47,7 +47,6 @@ Retrieves all items in the playlist.
 [
   {
     "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-    "duration": 10,
     "repeat_count": 1,
     "border_effect": {"Rainbow": null},
     "content": {
@@ -87,7 +86,6 @@ Creates a new playlist item.
 ```json
 {
   "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "duration": 10,
   "repeat_count": 1,
   "border_effect": {"Rainbow": null},
   "content": {
@@ -121,7 +119,6 @@ Retrieves a specific playlist item by ID.
 ```json
 {
   "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "duration": 10,
   "repeat_count": 1,
   "border_effect": {"Rainbow": null},
   "content": {
@@ -167,7 +164,6 @@ Updates a specific playlist item by ID.
 ```json
 {
   "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "duration": 10,
   "repeat_count": 1,
   "border_effect": {"Rainbow": null},
   "content": {
@@ -238,7 +234,6 @@ Changes the order of playlist items.
 [
   {
     "id": "id1",
-    "duration": 10,
     "repeat_count": 1,
     "border_effect": null,
     "content": {
@@ -340,7 +335,6 @@ Starts preview mode with the provided content.
 ```json
 {
   "id": "preview-d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "duration": 10,
   "repeat_count": 1,
   "border_effect": {"Rainbow": null},
   "content": {
@@ -418,8 +412,8 @@ Keeps preview mode active (prevents timeout).
 ```json
 {
   "id": "string", // Optional - will be generated if omitted
-  "duration": number, // Display duration in seconds (0 = indefinite)
-  "repeat_count": number, // Number of times to repeat (0 = indefinite)
+  "duration": number, // OPTIONAL - Display duration in seconds (0 = indefinite)
+  "repeat_count": number, // OPTIONAL - Number of times to repeat (0 = indefinite)
   "border_effect": { // Optional border effect
     "None": null, // or
     "Rainbow": null, // or
@@ -433,6 +427,16 @@ Keeps preview mode active (prevents timeout).
   }
 }
 ```
+
+**Important Note on Duration and Repeat Count:**
+- Exactly ONE of `duration` or `repeat_count` must be specified
+- Both fields cannot be specified simultaneously
+- Neither field can be omitted entirely
+- When using Text content with `scroll: true`, you MUST use `repeat_count` instead of `duration`
+
+**Field Details:**
+- `duration`: Time in seconds to display the content before transitioning to the next item. Use 0 for indefinite duration.
+- `repeat_count`: Number of scroll cycles to complete before transitioning to the next item. Use 0 for infinite repetition.
 
 ### ContentType
 
@@ -496,55 +500,3 @@ Text segments allow different parts of the text to have different colors and for
   "strikethrough": boolean // Whether to strike through the text
 }
 ```
-
-## Frontend Integration
-
-### Preview Mode Usage
-
-When editing content, the frontend should:
-
-1. Start preview mode with the content being edited:
-   ```javascript
-   fetch('/api/preview', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({
-       "duration": 10,
-       "repeat_count": 1,
-       "content": {
-         "type": "Text",
-         "data": {
-           "text": "Preview Text",
-           "scroll": true,
-           "color": [255, 255, 255],
-           "speed": 50.0
-         }
-       }
-     })
-   });
-   ```
-
-2. Set up a ping interval to keep preview mode active:
-   ```javascript
-   const pingInterval = setInterval(() => {
-     fetch('/api/preview/ping', { method: 'POST' })
-       .catch(err => console.error('Preview ping failed', err));
-   }, 4000); // Ping every 4 seconds (timeout is 5 seconds)
-   ```
-
-3. Exit preview mode when editing is finished:
-   ```javascript
-   fetch('/api/preview', { method: 'DELETE' })
-     .then(() => clearInterval(pingInterval));
-   ```
-
-4. Check preview mode status if needed:
-   ```javascript
-   fetch('/api/preview/status')
-     .then(response => response.json())
-     .then(data => {
-       if (data.active) {
-         // Still in preview mode
-       }
-     });
-   ```

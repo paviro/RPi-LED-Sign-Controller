@@ -7,7 +7,7 @@ use embedded_graphics::{
     geometry::Point,
     Drawable,
 };
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use once_cell::sync::Lazy;
 use log::{info, debug};
 use rand::Rng;
@@ -128,8 +128,8 @@ impl DisplayManager {
                 
                 DisplayContent {
                     id: Uuid::new_v4().to_string(),
-                    duration: 0,
-                    repeat_count: 0,     // Infinite repeat
+                    duration: None,                   // Updated to use None
+                    repeat_count: Some(0),            // Infinite repeat with Some(0)
                     border_effect: Some(BorderEffect::Pulse { 
                         colors: vec![[0, 255, 0], [0, 200, 0]] 
                     }),
@@ -162,56 +162,36 @@ impl DisplayManager {
             return false;
         }
 
-        // Clone necessary values to avoid borrowing issues
-        let current_content = self.get_current_content().clone();
-        let elapsed = self.last_transition.elapsed();
+        let now = Instant::now();
+        let current = self.get_current_content();
         
-        // For duration-based items
-        if current_content.duration > 0 {
-            let duration = Duration::from_secs(current_content.duration);
-            
-            if elapsed >= duration {
-                self.current_repeat += 1;
-                
-                // Check if we've reached the repeat count
-                if current_content.repeat_count == 0 || self.current_repeat < current_content.repeat_count {
-                    // Reset the timer but stay on the same item
-                    self.last_transition = Instant::now();
-                    false
-                } else {
-                    // Move to the next item
-                    self.advance_playlist();
+        // Handle transition logic based on which field is set
+        let should_transition = match (current.duration, current.repeat_count) {
+            (Some(duration), None) => {
+                // Duration-based transition (in seconds)
+                if duration > 0 && now.duration_since(self.last_transition).as_secs() >= duration {
                     true
+                } else {
+                    false
                 }
-            } else {
-                false
-            }
-        } else {
-            // For scroll-based items with TextContent, check if we've completed a scroll
-            match &current_content.content.data {
-                ContentDetails::Text(text_content) => {
-                    if text_content.scroll && self.completed_scrolls > 0 {
-                        self.current_repeat += 1;
-                        self.completed_scrolls = 0;
-                        
-                        // Check if we've reached the repeat count
-                        if current_content.repeat_count == 0 || self.current_repeat < current_content.repeat_count {
-                            // Reset position but stay on the same item
-                            self.scroll_position = self.display_width;
-                            false
-                        } else {
-                            // Move to the next item
-                            self.advance_playlist();
-                            true
-                        }
-                    } else {
-                        false
-                    }
-                },
-                #[allow(unreachable_patterns)]
-                _ => false
-            }
+            },
+            (None, Some(repeat_count)) => {
+                // Repeat-count based transition
+                if repeat_count > 0 && self.completed_scrolls >= repeat_count {
+                    true
+                } else {
+                    false
+                }
+            },
+            _ => false, // This should never happen due to our validation
+        };
+        
+        if should_transition {
+            self.advance_playlist();
+            return true;
         }
+        
+        false
     }
     
     fn advance_playlist(&mut self) {
