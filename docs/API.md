@@ -20,7 +20,7 @@ This document outlines all available API endpoints for the LED Matrix Controller
   - [Get Preview Mode Status](#get-preview-mode-status)
   - [Ping Preview Mode](#ping-preview-mode)
 - [Data Structures](#data-structures)
-  - [DisplayContent](#displaycontent)
+  - [PlayListItem](#playlistitem)
   - [ContentType](#contenttype)
   - [ContentData](#contentdata)
   - [TextContent](#textcontent)
@@ -41,7 +41,7 @@ Retrieves all items in the playlist.
 #### Success Response
 
 - **Code**: 200 OK
-- **Content**: Array of [DisplayContent](#displaycontent) objects
+- **Content**: Array of [PlayListItem](#playlistitem) objects
 
 ```json
 [
@@ -72,7 +72,7 @@ Creates a new playlist item.
 - **Method**: `POST`
 - **Content-Type**: `application/json`
 - **Authentication**: None
-- **Request Body**: [DisplayContent](#displaycontent) object
+- **Request Body**: [PlayListItem](#playlistitem) object
 
 #### Notes
 
@@ -81,7 +81,7 @@ Creates a new playlist item.
 #### Success Response
 
 - **Code**: 201 Created
-- **Content**: The created [DisplayContent](#displaycontent) object with assigned ID
+- **Content**: The created [PlayListItem](#playlistitem) object with assigned ID
 
 ```json
 {
@@ -114,7 +114,7 @@ Retrieves a specific playlist item by ID.
 #### Success Response
 
 - **Code**: 200 OK
-- **Content**: [DisplayContent](#displaycontent) object
+- **Content**: [PlayListItem](#playlistitem) object
 
 ```json
 {
@@ -149,7 +149,7 @@ Updates a specific playlist item by ID.
 - **Authentication**: None
 - **URL Parameters**: 
   - `id`: UUID of the playlist item
-- **Request Body**: [DisplayContent](#displaycontent) object
+- **Request Body**: [PlayListItem](#playlistitem) object
 
 #### Notes
 
@@ -159,7 +159,7 @@ Updates a specific playlist item by ID.
 #### Success Response
 
 - **Code**: 200 OK
-- **Content**: The updated [DisplayContent](#displaycontent) object
+- **Content**: The updated [PlayListItem](#playlistitem) object
 
 ```json
 {
@@ -228,7 +228,7 @@ Changes the order of playlist items.
 #### Success Response
 
 - **Code**: 200 OK
-- **Content**: Array of reordered [DisplayContent](#displaycontent) objects
+- **Content**: Array of reordered [PlayListItem](#playlistitem) objects
 
 ```json
 [
@@ -320,7 +320,7 @@ Starts preview mode with the provided content.
 - **Method**: `POST`
 - **Content-Type**: `application/json`
 - **Authentication**: None
-- **Request Body**: [DisplayContent](#displaycontent) object
+- **Request Body**: [PlayListItem](#playlistitem) object
 
 #### Notes
 
@@ -330,7 +330,7 @@ Starts preview mode with the provided content.
 #### Success Response
 
 - **Code**: 200 OK
-- **Content**: The [DisplayContent](#displaycontent) object being previewed
+- **Content**: The [PlayListItem](#playlistitem) object being previewed
 
 ```json
 {
@@ -407,7 +407,7 @@ Keeps preview mode active (prevents timeout).
 
 ## Data Structures
 
-### DisplayContent
+### PlayListItem
 
 ```json
 {
