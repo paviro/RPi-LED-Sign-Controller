@@ -559,6 +559,7 @@ impl DisplayManager {
                         if is_strikethrough {
                             // Get strikethrough color - red for white text, white for everything else
                             let [strike_r, strike_g, strike_b] = get_smooth_strikethrough_color(r, g, b);
+                            let strike_color_with_brightness = self.apply_brightness([strike_r, strike_g, strike_b]);
                             
                             // Draw line through text - two pixels high for better visibility
                             let strike_y1 = vertical_position - font_height/5; 
@@ -566,8 +567,8 @@ impl DisplayManager {
                             
                             for i in 0..width {
                                 // Draw two pixels in height
-                                canvas.set_pixel((x_pos + i) as usize, strike_y1 as usize, strike_r, strike_g, strike_b);
-                                canvas.set_pixel((x_pos + i) as usize, strike_y2 as usize, strike_r, strike_g, strike_b);
+                                canvas.set_pixel((x_pos + i) as usize, strike_y1 as usize, strike_color_with_brightness[0], strike_color_with_brightness[1], strike_color_with_brightness[2]);
+                                canvas.set_pixel((x_pos + i) as usize, strike_y2 as usize, strike_color_with_brightness[0], strike_color_with_brightness[1], strike_color_with_brightness[2]);
                             }
                         }
                     }
