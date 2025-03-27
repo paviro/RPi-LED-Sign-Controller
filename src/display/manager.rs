@@ -408,16 +408,18 @@ impl DisplayManager {
     }
 
     // Check if preview mode has timed out from inactivity
-    pub fn check_preview_timeout(&mut self, timeout_seconds: u64) -> bool {
+    pub fn check_preview_timeout(&mut self, timeout_seconds: u64) -> Option<String> {
         if self.preview_mode {
             let elapsed = self.last_preview_ping.elapsed().as_secs();
             if elapsed > timeout_seconds {
                 info!("Preview mode timed out after {} seconds of inactivity", elapsed);
+                // Store session ID before exiting preview mode
+                let session_id = self.preview_session_id.clone();
                 self.exit_preview_mode();
-                return true;
+                return session_id;
             }
         }
-        false
+        None
     }
 
     // Check if preview mode is currently active

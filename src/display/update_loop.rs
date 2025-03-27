@@ -1,12 +1,13 @@
 use std::time::Duration;
 use std::time::Instant;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use log::info;
 use crate::display::manager::DisplayManager;
 use crate::models::content::ContentDetails;
+use crate::web::api::events::EventState;
 
 // Display loop function that manages the update cycle
-pub async fn display_loop(display: Arc<tokio::sync::Mutex<DisplayManager>>) {
+pub async fn display_loop(display: Arc<tokio::sync::Mutex<DisplayManager>>, event_state: Arc<Mutex<EventState>>) {
     info!("Starting display update loop");
     let mut last_time = Instant::now();
     let mut frame_count = 0;
@@ -23,7 +24,12 @@ pub async fn display_loop(display: Arc<tokio::sync::Mutex<DisplayManager>>) {
         let mut display_guard = display.lock().await;
         
         // Check for preview mode timeout
-        display_guard.check_preview_timeout(PREVIEW_TIMEOUT);
+        if let Some(_session_id) = display_guard.check_preview_timeout(PREVIEW_TIMEOUT) {
+            // If preview timed out, broadcast the editor unlock event
+            if let Ok(event_state_guard) = event_state.lock() {
+                event_state_guard.broadcast_editor_lock(false, None);
+            }
+        }
         
         // Check if transition to next item is needed
         let transition_occurred = display_guard.check_transition();

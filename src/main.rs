@@ -167,16 +167,18 @@ async fn main() {
     }) {
         error!("Error setting Ctrl-C handler: {}", e);
     }
-    
-    // Spawn display update task
-    let display_clone = display.clone();
-    tokio::spawn(async move {
-        debug!("Display update task started");
-        display_loop(display_clone).await;
-    });
-    
+
     // Create SSE state manager
     let sse_state = EventState::new();
+
+    tokio::spawn({
+        let display_clone = display.clone();
+        let sse_state_clone = sse_state.clone();
+        async move {
+            debug!("Display update task started");
+            display_loop(display_clone, sse_state_clone).await;
+        }
+    });
     
     // Create the combined state
     let combined_state = ((display.clone(), storage.clone()), sse_state.clone());
