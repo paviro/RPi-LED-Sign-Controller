@@ -11,9 +11,9 @@ use crate::utils::privilege::{check_root_privileges, drop_privileges};
 use crate::display::update_loop::display_loop;
 use crate::web::api::playlist::{get_playlist_items, create_playlist_item, get_playlist_item, update_playlist_item, delete_playlist_item, reorder_playlist_items};
 use crate::web::api::settings::{get_brightness, update_brightness};
-use crate::web::api::preview::{start_preview_mode, exit_preview_mode, get_preview_mode_status, ping_preview_mode};
+use crate::web::api::preview::{start_preview_mode, exit_preview_mode, get_preview_mode_status, ping_preview_mode, check_session_owner, update_preview};
 use crate::web::static_assets::{index_handler, next_assets_handler, static_assets_handler};
-use crate::web::api::events::{EventState, brightness_events};
+use crate::web::api::events::{EventState, brightness_events, editor_lock_events, playlist_events};
 use axum::{
     routing::{post, get, put, delete},
     Router,
@@ -197,12 +197,16 @@ async fn main() {
         
         // New SSE endpoint with changed path
         .route("/api/events/brightness", get(brightness_events))
+        .route("/api/events/editor", get(editor_lock_events))  
+        .route("/api/events/playlist", get(playlist_events))
         
         // New preview mode endpoints
         .route("/api/preview", post(start_preview_mode))
+        .route("/api/preview", put(update_preview))
         .route("/api/preview", delete(exit_preview_mode))
         .route("/api/preview/status", get(get_preview_mode_status))
         .route("/api/preview/ping", post(ping_preview_mode))
+        .route("/api/preview/session", post(check_session_owner))
         
         .with_state(combined_state);
     

@@ -5,6 +5,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use log::{debug, error, warn};
+use crate::web::api::events::PlaylistAction;
 
 // Handler for getting all playlist items
 pub async fn get_playlist_items(
@@ -24,7 +25,7 @@ pub async fn create_playlist_item(
     debug!("Creating new playlist item");
     
     // No need to check for empty ID - deserialization already handled it
-    let ((display, storage), _) = combined_state;
+    let ((display, storage), event_state) = combined_state;
     let mut display_guard = display.lock().await;
     display_guard.playlist.items.push(item.clone());
     
@@ -33,6 +34,13 @@ pub async fn create_playlist_item(
     if !storage_guard.save_playlist(&display_guard.playlist) {
         error!("Failed to save playlist after adding new item");
     }
+    
+    // Broadcast the playlist update
+    let event_state_guard = event_state.lock().unwrap();
+    event_state_guard.broadcast_playlist_update(
+        display_guard.playlist.items.clone(),
+        PlaylistAction::Add
+    );
     
     (StatusCode::CREATED, Json(item))
 }
@@ -63,7 +71,7 @@ pub async fn update_playlist_item(
 ) -> Result<Json<PlayListItem>, StatusCode> {
     debug!("Updating playlist item with ID: {}", id);
     
-    let ((display, storage), _) = combined_state;
+    let ((display, storage), event_state) = combined_state;
     let mut display_guard = display.lock().await;
     
     if let Some(index) = display_guard.playlist.items.iter().position(|item| item.id == id) {
@@ -77,6 +85,13 @@ pub async fn update_playlist_item(
         if !storage_guard.save_playlist(&display_guard.playlist) {
             error!("Failed to save playlist after updating item");
         }
+        
+        // Broadcast the playlist update
+        let event_state_guard = event_state.lock().unwrap();
+        event_state_guard.broadcast_playlist_update(
+            display_guard.playlist.items.clone(),
+            PlaylistAction::Update
+        );
         
         // Reset display state if currently showing this item
         if display_guard.playlist.active_index == index {
@@ -96,7 +111,7 @@ pub async fn delete_playlist_item(
 ) -> Result<StatusCode, StatusCode> {
     debug!("Deleting playlist item with ID: {}", id);
     
-    let ((display, storage), _) = combined_state;
+    let ((display, storage), event_state) = combined_state;
     let mut display_guard = display.lock().await;
     
     // Find the index of the item with the given ID
@@ -120,6 +135,13 @@ pub async fn delete_playlist_item(
             error!("Failed to save playlist after deleting item");
         }
         
+        // Broadcast the playlist update
+        let event_state_guard = event_state.lock().unwrap();
+        event_state_guard.broadcast_playlist_update(
+            display_guard.playlist.items.clone(),
+            PlaylistAction::Delete
+        );
+        
         // Reset display state
         display_guard.reset_display_state();
         
@@ -136,7 +158,7 @@ pub async fn reorder_playlist_items(
 ) -> Result<Json<Vec<PlayListItem>>, StatusCode> {
     debug!("Reordering playlist items");
     
-    let ((display, storage), _) = combined_state;
+    let ((display, storage), event_state) = combined_state;
     let mut display_guard = display.lock().await;
     
     // Check if all requested IDs exist in the playlist
@@ -174,6 +196,13 @@ pub async fn reorder_playlist_items(
     if !storage_guard.save_playlist(&display_guard.playlist) {
         error!("Failed to save playlist after reordering items");
     }
+    
+    // Broadcast the playlist update
+    let event_state_guard = event_state.lock().unwrap();
+    event_state_guard.broadcast_playlist_update(
+        new_items.clone(),
+        PlaylistAction::Reorder
+    );
     
     // Return the reordered items
     Ok(Json(new_items))

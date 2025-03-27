@@ -28,6 +28,7 @@ pub struct DisplayManager {
     preview_renderer: Option<Box<dyn Renderer>>,
     preview_border_renderer: Option<Box<dyn Renderer>>,
     render_context: RenderContext,
+    preview_session_id: Option<String>,
 }
 
 impl DisplayManager {
@@ -73,6 +74,7 @@ impl DisplayManager {
             preview_renderer: None,
             preview_border_renderer: None,
             render_context,
+            preview_session_id: None,
         };
         
         // Initialize renderer if we have content
@@ -326,60 +328,59 @@ impl DisplayManager {
         }
     }
 
-    // Handle content preview with scroll position preservation where possible
-    pub fn enter_preview_mode(&mut self, content: PlayListItem) {
-        let already_in_preview = self.preview_mode;
-        self.preview_mode = true;
-        self.last_preview_ping = Instant::now();
+    // Private helper method to handle common preview content update logic
+    fn update_preview_renderers(&mut self, content: &PlayListItem) {
+        // Update existing renderers in place to preserve animation state where possible
+        if let Some(renderer) = &mut self.preview_renderer {
+            renderer.update_content(content);
+        } else {
+            // Create new renderer if none exists
+            self.preview_renderer = Some(create_renderer(content, self.render_context.clone()));
+        }
         
-        if already_in_preview {
-            // Update existing renderers in place to preserve animation state
-            if let Some(renderer) = &mut self.preview_renderer {
-                renderer.update_content(&content);
+        // Update border renderer or create new one if needed
+        if content.border_effect.is_some() {
+            if let Some(renderer) = &mut self.preview_border_renderer {
+                renderer.update_content(content);
             } else {
-                // Create new renderer if none exists
-                self.preview_renderer = Some(create_renderer(&content, self.render_context.clone()));
-            }
-            
-            // Update border renderer or create new one if needed
-            if content.border_effect.is_some() {
-                if let Some(renderer) = &mut self.preview_border_renderer {
-                    renderer.update_content(&content);
-                } else {
-                    // Create new border renderer if none exists
-                    self.preview_border_renderer = Some(create_border_renderer(&content, self.render_context.clone()));
-                }
-            } else {
-                // Remove border renderer if no longer needed
-                self.preview_border_renderer = None;
+                // Create new border renderer if none exists
+                self.preview_border_renderer = Some(create_border_renderer(content, self.render_context.clone()));
             }
         } else {
-            // First-time preview mode setup
-            info!("Entering preview mode");
-            
-            // Create new renderers
-            self.preview_renderer = Some(create_renderer(&content, self.render_context.clone()));
-            
-            // Create border renderer if needed
-            if content.border_effect.is_some() {
-                self.preview_border_renderer = Some(create_border_renderer(&content, self.render_context.clone()));
-            } else {
-                self.preview_border_renderer = None;
-            }
-        }
-        
-        // Always update the content
-        self.preview_content = Some(content);
-    }
-
-    pub fn exit_preview_mode(&mut self) {
-        if self.preview_mode {
-            info!("Exiting preview mode");
-            self.preview_mode = false;
-            self.preview_content = None;
-            self.preview_renderer = None;
+            // Remove border renderer if no longer needed
             self.preview_border_renderer = None;
         }
+        
+        // Update the content
+        self.preview_content = Some(content.clone());
+        
+        // Update the ping time
+        self.last_preview_ping = Instant::now();
+    }
+    
+    // Handle content preview with scroll position preservation where possible
+    pub fn enter_preview_mode(&mut self, content: PlayListItem, session_id: String) {
+        let already_in_preview = self.preview_mode;
+        self.preview_mode = true;
+        self.preview_session_id = Some(session_id);
+        
+        if !already_in_preview {
+            // First-time preview mode setup
+            info!("Entering preview mode");
+        }
+        
+        // Use the common helper method
+        self.update_preview_renderers(&content);
+    }
+
+    // Method to update preview content without changing the session ID
+    pub fn update_preview_content(&mut self, content: PlayListItem) {
+        if !self.preview_mode {
+            return;
+        }
+        
+        // Use the common helper method
+        self.update_preview_renderers(&content);
     }
 
     // Update renderer state
@@ -450,6 +451,27 @@ impl DisplayManager {
         
         // Setup renderers (this might create new renderers)
         self.setup_active_renderer();
+    }
+
+    // Add a method to check if a session owns the preview
+    pub fn is_preview_session_owner(&self, session_id: &str) -> bool {
+        if !self.preview_mode {
+            return false;
+        }
+        
+        self.preview_session_id.as_ref()
+            .map_or(false, |id| id == session_id)
+    }
+
+    pub fn exit_preview_mode(&mut self) {
+        if self.preview_mode {
+            info!("Exiting preview mode");
+            self.preview_mode = false;
+            self.preview_content = None;
+            self.preview_renderer = None;
+            self.preview_border_renderer = None;
+            self.preview_session_id = None;
+        }
     }
 }
 

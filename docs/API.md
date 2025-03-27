@@ -1,34 +1,33 @@
-# LED Matrix Controller API Documentation
+# LED Sign Controller API Documentation
 
-This document outlines all available API endpoints for the LED Matrix Controller.
+This document describes the API endpoints available for the LED sign controller application.
 
 ## Table of Contents
-
 - [Playlist Management](#playlist-management)
   - [Get All Playlist Items](#get-all-playlist-items)
   - [Create Playlist Item](#create-playlist-item)
-  - [Get Playlist Item](#get-playlist-item)
+  - [Get Specific Playlist Item](#get-specific-playlist-item)
   - [Update Playlist Item](#update-playlist-item)
   - [Delete Playlist Item](#delete-playlist-item)
   - [Reorder Playlist Items](#reorder-playlist-items)
 - [Settings](#settings)
   - [Get Brightness](#get-brightness)
   - [Update Brightness](#update-brightness)
-- [Events](#events)
-  - [Brightness Events](#brightness-events)
 - [Preview Mode](#preview-mode)
   - [Start Preview Mode](#start-preview-mode)
+  - [Update Preview Content](#update-preview-content)
   - [Exit Preview Mode](#exit-preview-mode)
-  - [Get Preview Mode Status](#get-preview-mode-status)
-  - [Ping Preview Mode](#ping-preview-mode)
-- [Data Structures](#data-structures)
-  - [PlayListItem](#playlistitem)
-  - [ContentType](#contenttype)
-  - [ContentData](#contentdata)
-  - [TextContent](#textcontent)
-  - [BorderEffect](#bordereffect)
-  - [TextSegment](#textsegment)
-  - [TextFormatting](#textformatting)
+  - [Check Preview Status](#check-preview-status)
+  - [Ping Preview Session](#ping-preview-session)
+  - [Check Session Ownership](#check-session-ownership)
+- [Real-time Events](#real-time-events)
+  - [Brightness Events](#brightness-events)
+  - [Editor Lock Events](#editor-lock-events)
+  - [Playlist Events](#playlist-events)
+- [JavaScript SDK Examples](#javascript-sdk-examples)
+  - [Preview Mode Flow](#preview-mode-flow)
+  - [Editor Lock Management](#editor-lock-management)
+  - [Real-time Event Handling](#real-time-event-handling)
 
 ## Playlist Management
 
@@ -38,31 +37,26 @@ Retrieves all items in the playlist.
 
 - **URL**: `/api/playlist/items`
 - **Method**: `GET`
-- **Authentication**: None
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**: Array of [PlayListItem](#playlistitem) objects
-
+- **Response**: Array of playlist items
+  
 ```json
 [
   {
-    "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-    "repeat_count": 1,
-    "border_effect": {"Rainbow": null},
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "duration": 10,
+    "repeat_count": null,
+    "border_effect": { "Rainbow": null },
     "content": {
-      "type": "Text",
+      "content_type": "Text",
       "data": {
-        "text": "Welcome to LED Matrix Controller",
-        "scroll": true,
+        "text": "Hello World",
+        "scroll": false,
         "color": [255, 255, 255],
         "speed": 50.0,
         "text_segments": null
       }
     }
-  },
-  ...
+  }
 ]
 ```
 
@@ -72,29 +66,20 @@ Creates a new playlist item.
 
 - **URL**: `/api/playlist/items`
 - **Method**: `POST`
-- **Content-Type**: `application/json`
-- **Authentication**: None
-- **Request Body**: [PlayListItem](#playlistitem) object
-
-#### Notes
-
-- The `id` field is optional and will be automatically generated if omitted.
-
-#### Success Response
-
-- **Code**: 201 Created
-- **Content**: The created [PlayListItem](#playlistitem) object with assigned ID
+- **Body**: Playlist item (ID will be generated if not provided)
+- **Response**: Created playlist item with ID
 
 ```json
 {
-  "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "repeat_count": 1,
-  "border_effect": {"Rainbow": null},
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "duration": 10,
+  "repeat_count": null,
+  "border_effect": { "Rainbow": null },
   "content": {
-    "type": "Text",
+    "content_type": "Text",
     "data": {
-      "text": "Welcome to LED Matrix Controller",
-      "scroll": true,
+      "text": "Hello World",
+      "scroll": false,
       "color": [255, 255, 255],
       "speed": 50.0,
       "text_segments": null
@@ -103,160 +88,52 @@ Creates a new playlist item.
 }
 ```
 
-### Get Playlist Item
+### Get Specific Playlist Item
 
 Retrieves a specific playlist item by ID.
 
 - **URL**: `/api/playlist/items/:id`
 - **Method**: `GET`
-- **Authentication**: None
-- **URL Parameters**: 
-  - `id`: UUID of the playlist item
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**: [PlayListItem](#playlistitem) object
-
-```json
-{
-  "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "repeat_count": 1,
-  "border_effect": {"Rainbow": null},
-  "content": {
-    "type": "Text",
-    "data": {
-      "text": "Welcome to LED Matrix Controller",
-      "scroll": true,
-      "color": [255, 255, 255],
-      "speed": 50.0,
-      "text_segments": null
-    }
-  }
-}
-```
-
-#### Error Response
-
-- **Code**: 404 Not Found
-- **Content**: None
+- **Response**: Playlist item
+- **Error Codes**: 
+  - `404` - Item not found
 
 ### Update Playlist Item
 
-Updates a specific playlist item by ID.
+Updates a specific playlist item.
 
 - **URL**: `/api/playlist/items/:id`
 - **Method**: `PUT`
-- **Content-Type**: `application/json`
-- **Authentication**: None
-- **URL Parameters**: 
-  - `id`: UUID of the playlist item
-- **Request Body**: [PlayListItem](#playlistitem) object
-
-#### Notes
-
-- The `id` in the URL must match an existing playlist item
-- The `id` in the request body is ignored; the URL parameter takes precedence
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**: The updated [PlayListItem](#playlistitem) object
-
-```json
-{
-  "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "repeat_count": 1,
-  "border_effect": {"Rainbow": null},
-  "content": {
-    "type": "Text",
-    "data": {
-      "text": "Updated Text Content",
-      "scroll": true,
-      "color": [255, 255, 255],
-      "speed": 50.0,
-      "text_segments": null
-    }
-  }
-}
-```
-
-#### Error Response
-
-- **Code**: 404 Not Found
-- **Content**: None
+- **Body**: Updated playlist item
+- **Response**: Updated playlist item
+- **Error Codes**:
+  - `404` - Item not found
 
 ### Delete Playlist Item
 
-Deletes a specific playlist item by ID.
+Deletes a specific playlist item.
 
 - **URL**: `/api/playlist/items/:id`
 - **Method**: `DELETE`
-- **Authentication**: None
-- **URL Parameters**: 
-  - `id`: UUID of the playlist item
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**: None
-
-#### Error Response
-
-- **Code**: 404 Not Found
-- **Content**: None
+- **Response**: Status code only
+- **Error Codes**:
+  - `404` - Item not found
 
 ### Reorder Playlist Items
 
-Changes the order of playlist items.
+Reorders all playlist items.
 
 - **URL**: `/api/playlist/reorder`
 - **Method**: `PUT`
-- **Content-Type**: `application/json`
-- **Authentication**: None
-- **Request Body**:
-
+- **Body**: Ordered array of item IDs
 ```json
 {
-  "item_ids": ["id1", "id2", "id3", ...]
+  "item_ids": ["id1", "id2", "id3"]
 }
 ```
-
-#### Notes
-
-- The `item_ids` array must contain all existing playlist item IDs
-- The order of IDs in the array determines the new order of playlist items
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**: Array of reordered [PlayListItem](#playlistitem) objects
-
-```json
-[
-  {
-    "id": "id1",
-    "repeat_count": 1,
-    "border_effect": null,
-    "content": {
-      "type": "Text",
-      "data": {
-        "text": "First item",
-        "scroll": true,
-        "color": [255, 255, 255],
-        "speed": 50.0,
-        "text_segments": null
-      }
-    }
-  },
-  // Additional items...
-]
-```
-
-#### Error Response
-
-- **Code**: 400 Bad Request
-- **Content**: None
+- **Response**: Reordered list of playlist items
+- **Error Codes**:
+  - `400` - Invalid reorder request (missing items or incorrect count)
 
 ## Settings
 
@@ -266,296 +143,541 @@ Retrieves the current brightness setting.
 
 - **URL**: `/api/settings/brightness`
 - **Method**: `GET`
-- **Authentication**: None
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**:
-
+- **Response**: Current brightness (0-100)
 ```json
 {
-  "brightness": 100
+  "brightness": 75
 }
 ```
 
 ### Update Brightness
 
-Updates the brightness setting.
+Updates the display brightness.
 
 - **URL**: `/api/settings/brightness`
 - **Method**: `PUT`
-- **Content-Type**: `application/json`
-- **Authentication**: None
-- **Request Body**:
-
+- **Body**: New brightness setting
 ```json
 {
   "brightness": 75
 }
 ```
-
-#### Notes
-
-- Brightness value must be between 0 and 100
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**: Updated brightness settings
-
+- **Response**: Updated brightness setting
 ```json
 {
   "brightness": 75
-}
-```
-
-## Events
-
-### Brightness Events
-
-Establishes a Server-Sent Events (SSE) connection to receive real-time brightness updates.
-
-- **URL**: `/api/events/brightness`
-- **Method**: `GET`
-- **Authentication**: None
-- **Response Format**: Server-Sent Events (text/event-stream)
-
-#### Event Types
-
-- **message**: Contains brightness update data
-
-#### Event Data Format
-
-```json
-{
-  "brightness": 75
-}
-```
-
-#### Notes
-
-- Use the EventSource API in browsers to connect to this endpoint
-- The connection will remain open and receive updates whenever brightness changes
-- The server sends keepalive messages to maintain the connection
-- Multiple clients can connect simultaneously to stay in sync
-
-#### JavaScript Example
-
-```javascript
-// Connect to the SSE endpoint
-const eventSource = new EventSource('/api/events/brightness');
-
-// Listen for brightness updates
-eventSource.addEventListener('message', (event) => {
-  const brightnessData = JSON.parse(event.data);
-  console.log('Brightness updated:', brightnessData.brightness);
-});
-
-// Handle connection status
-eventSource.addEventListener('open', () => {
-  console.log('SSE connection established');
-});
-
-eventSource.addEventListener('error', (event) => {
-  console.error('SSE connection error:', event);
-});
-
-// Clean up when component unmounts
-function cleanup() {
-  eventSource.close();
 }
 ```
 
 ## Preview Mode
 
-Preview mode allows temporarily displaying content without adding it to the playlist.
-
 ### Start Preview Mode
 
-Starts preview mode with the provided content.
+Starts preview mode with the specified content.
 
 - **URL**: `/api/preview`
 - **Method**: `POST`
-- **Content-Type**: `application/json`
-- **Authentication**: None
-- **Request Body**: [PlayListItem](#playlistitem) object
-
-#### Notes
-
-- The `id` field is optional and will be automatically generated if omitted
-- Entering preview mode pauses the regular playlist playback
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**: The [PlayListItem](#playlistitem) object being previewed
-
+- **Body**: Playlist item to preview
+- **Response**: Preview mode response with session ID
 ```json
 {
-  "id": "preview-d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "repeat_count": 1,
-  "border_effect": {"Rainbow": null},
-  "content": {
-    "type": "Text",
-    "data": {
-      "text": "Preview Text",
-      "scroll": true,
-      "color": [255, 255, 255],
-      "speed": 50.0,
-      "text_segments": null
+  "item": {
+    "id": "preview-item",
+    "duration": 10,
+    "border_effect": null,
+    "content": {
+      "content_type": "Text",
+      "data": {
+        "text": "Preview Text",
+        "scroll": false,
+        "color": [255, 255, 255],
+        "speed": 50.0,
+        "text_segments": null
+      }
     }
-  }
+  },
+  "session_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
+**Note**: The session ID returned must be saved and used for all subsequent preview operations.
+
+### Update Preview Content
+
+Updates the content being previewed.
+
+- **URL**: `/api/preview`
+- **Method**: `PUT`
+- **Body**: Updated item and session ID
+```json
+{
+  "item": {
+    "id": "preview-item",
+    "duration": 10,
+    "border_effect": null,
+    "content": {
+      "content_type": "Text",
+      "data": {
+        "text": "Updated Preview Text",
+        "scroll": false,
+        "color": [255, 0, 0],
+        "speed": 50.0,
+        "text_segments": null
+      }
+    }
+  },
+  "session_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+- **Response**: Updated preview response
+- **Error Codes**:
+  - `403` - Session does not own the preview lock
+  - `404` - Not in preview mode
+
 ### Exit Preview Mode
 
-Exits preview mode and returns to normal playlist playback.
+Exits preview mode.
 
 - **URL**: `/api/preview`
 - **Method**: `DELETE`
-- **Authentication**: None
+- **Body**: Session ID for authorization
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+- **Response**: Status code only
+- **Error Codes**:
+  - `403` - Session does not own the preview lock
+  - `404` - Not in preview mode
 
-#### Success Response
+**Note**: Only the session that started preview mode can exit it.
 
-- **Code**: 200 OK
-- **Content**: None
-
-### Get Preview Mode Status
+### Check Preview Status
 
 Checks if the display is currently in preview mode.
 
 - **URL**: `/api/preview/status`
 - **Method**: `GET`
-- **Authentication**: None
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**:
-
+- **Response**: Preview mode state
 ```json
 {
   "active": true
 }
 ```
 
-### Ping Preview Mode
+### Ping Preview Session
 
-Keeps preview mode active (prevents timeout).
+Prevents the preview mode from timing out. Only the session that started the preview can ping it.
 
 - **URL**: `/api/preview/ping`
 - **Method**: `POST`
-- **Authentication**: None
-
-#### Notes
-
-- Preview mode will automatically exit after 5 seconds of inactivity
-- The frontend must call this endpoint every 4-5 seconds to keep preview mode active
-
-#### Success Response
-
-- **Code**: 200 OK
-- **Content**: None
-
-#### Error Response
-
-- **Code**: 404 Not Found (if not in preview mode)
-- **Content**: None
-
-## Data Structures
-
-### PlayListItem
-
+- **Body**: Session ID for authorization
 ```json
 {
-  "id": "string", // Optional - will be generated if omitted
-  "duration": number, // OPTIONAL - Display duration in seconds (0 = indefinite)
-  "repeat_count": number, // OPTIONAL - Number of times to repeat (0 = indefinite)
-  "border_effect": { // Optional border effect
-    "None": null, // or
-    "Rainbow": null, // or
-    "Pulse": {"colors": [[R, G, B], ...]}, // or
-    "Sparkle": {"colors": [[R, G, B], ...]}, // or
-    "Gradient": {"colors": [[R, G, B], ...]}
-  },
-  "content": {
-    "type": "Text", // Content type (currently only Text supported)
-    "data": { ... } // Content-specific data structure
+  "session_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+- **Response**: Status code only
+- **Error Codes**:
+  - `403` - Session does not own the preview lock
+  - `404` - Not in preview mode 
+
+### Check Session Ownership
+
+Checks if a session owns the current preview lock.
+
+- **URL**: `/api/preview/session`
+- **Method**: `POST`
+- **Body**: Session ID to check
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+- **Response**: Ownership status
+```json
+{
+  "is_owner": true
+}
+```
+
+## Real-time Events
+
+The application provides Server-Sent Events (SSE) for real-time updates.
+
+### Brightness Events
+
+Subscribe to brightness change events.
+
+- **URL**: `/api/events/brightness`
+- **Method**: `GET`
+- **Content Type**: `text/event-stream`
+- **Event Format**:
+```json
+{
+  "brightness": 75
+}
+```
+
+### Editor Lock Events
+
+Subscribe to editor lock status changes.
+
+- **URL**: `/api/events/editor`
+- **Method**: `GET`
+- **Content Type**: `text/event-stream`
+- **Event Format**:
+```json
+{
+  "locked": true,
+  "locked_by": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### Playlist Events
+
+Subscribe to playlist update events.
+
+- **URL**: `/api/events/playlist`
+- **Method**: `GET`
+- **Content Type**: `text/event-stream`
+- **Event Format**:
+```json
+{
+  "items": [/* array of playlist items */],
+  "action": "Add" // One of: "Add", "Update", "Delete", "Reorder"
+}
+```
+
+## JavaScript SDK Examples
+
+### Preview Mode Flow
+
+Complete example of starting, updating, and exiting preview mode with proper session management:
+
+```javascript
+// Start a preview session
+async function startPreview(content) {
+  const response = await fetch('/api/preview', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(content)
+  });
+  
+  if (!response.ok) throw new Error('Failed to start preview');
+  
+  const data = await response.json();
+  return data.session_id; // Save this for future operations
+}
+
+// Update the preview content
+async function updatePreview(content, sessionId) {
+  const response = await fetch('/api/preview', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      item: content,
+      session_id: sessionId
+    })
+  });
+  
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error('Session does not own the preview lock');
+    }
+    throw new Error('Failed to update preview');
+  }
+  
+  return await response.json();
+}
+
+// Exit preview mode
+async function exitPreview(sessionId) {
+  const response = await fetch('/api/preview', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      session_id: sessionId
+    })
+  });
+  
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error('Session does not own the preview lock');
+    }
+    throw new Error('Failed to exit preview');
+  }
+}
+
+// Keep preview active with pings
+function setupPreviewPings(intervalMs = 3000) {
+  const pingInterval = setInterval(async () => {
+    try {
+      const response = await fetch('/api/preview/ping', {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        console.warn('Preview session may have expired');
+        clearInterval(pingInterval);
+      }
+    } catch (err) {
+      console.error('Error pinging preview:', err);
+      clearInterval(pingInterval);
+    }
+  }, intervalMs);
+  
+  return pingInterval; // Store this to clear it when done
+}
+
+// Usage example
+async function previewWorkflow() {
+  // Example content to preview
+  const content = {
+    id: "temp-preview",
+    duration: 10,
+    content: {
+      content_type: "Text",
+      data: {
+        text: "Preview Text",
+        scroll: false,
+        color: [255, 255, 255],
+        speed: 50.0
+      }
+    }
+  };
+  
+  try {
+    // Start preview and get session ID
+    const sessionId = await startPreview(content);
+    console.log('Preview started with session:', sessionId);
+    
+    // Start pinging to keep preview active
+    const pingInterval = setupPreviewPings();
+    
+    // Update preview after 5 seconds
+    setTimeout(async () => {
+      try {
+        content.content.data.text = "Updated Text";
+        content.content.data.color = [255, 0, 0];
+        await updatePreview(content, sessionId);
+        console.log('Preview updated');
+      } catch (err) {
+        console.error('Error updating preview:', err);
+      }
+    }, 5000);
+    
+    // Exit preview after 10 seconds
+    setTimeout(async () => {
+      try {
+        clearInterval(pingInterval); // Stop pings
+        await exitPreview(sessionId);
+        console.log('Preview exited');
+      } catch (err) {
+        console.error('Error exiting preview:', err);
+      }
+    }, 10000);
+    
+  } catch (err) {
+    console.error('Preview workflow error:', err);
   }
 }
 ```
 
-**Important Note on Duration and Repeat Count:**
-- Exactly ONE of `duration` or `repeat_count` must be specified
-- Both fields cannot be specified simultaneously
-- Neither field can be omitted entirely
-- When using Text content with `scroll: true`, you MUST use `repeat_count` instead of `duration`
+### Editor Lock Management
 
-**Field Details:**
-- `duration`: Time in seconds to display the content before transitioning to the next item. Use 0 for indefinite duration.
-- `repeat_count`: Number of scroll cycles to complete before transitioning to the next item. Use 0 for infinite repetition.
+Example for handling editor locks with SSE:
 
-### ContentType
-
-Available content types:
-- `Text` - Text content (currently the only supported type)
-- Future types: `Image`, `Clock`, `Animation`, etc.
-
-### ContentData
-
-The structure of the `data` field depends on the `type` value:
-
-For `Text` type, see [TextContent](#textcontent).
-
-### TextContent
-
-```json
-{
-  "text": "string", // Text content to display
-  "scroll": boolean, // Whether to scroll the text
-  "color": [R, G, B], // RGB color as a tuple of integers (0-255)
-  "speed": number, // Scroll speed in pixels per second
-  "text_segments": [ // Optional text formatting segments
-    { ... } // See TextSegment structure
-  ]
+```javascript
+function setupEditorLockMonitoring(onLockChanged) {
+  const eventSource = new EventSource('/api/events/editor');
+  
+  eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    onLockChanged(data.locked, data.locked_by);
+  };
+  
+  // Handle connection errors
+  eventSource.onerror = (err) => {
+    console.error('Editor lock SSE error:', err);
+    eventSource.close();
+    
+    // Attempt to reconnect after a delay
+    setTimeout(() => setupEditorLockMonitoring(onLockChanged), 5000);
+  };
+  
+  return {
+    close: () => eventSource.close()
+  };
 }
-```
 
-### BorderEffect
+// Check if the current session owns the lock
+async function checkSessionLockOwnership(sessionId) {
+  const response = await fetch('/api/preview/session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      session_id: sessionId
+    })
+  });
+  
+  if (!response.ok) throw new Error('Failed to check session ownership');
+  
+  const data = await response.json();
+  return data.is_owner;
+}
 
-Border effects add visual effects around the displayed content:
+// Usage example
+let currentSessionId = null;
 
-- `None`: No border effect
-- `Rainbow`: Colorful rainbow animation around the border
-- `Pulse`: Border pulses with the specified colors
-- `Sparkle`: Sparkling effect with the specified colors
-- `Gradient`: Gradient animation with the specified colors
-
-### TextSegment
-
-Text segments allow different parts of the text to have different colors and formatting:
-
-```json
-{
-  "start": 0, // Start index in the text
-  "end": 5, // End index in the text (exclusive)
-  "color": [255, 0, 0], // Optional RGB color for this segment
-  "formatting": { // Optional formatting for this segment
-    "bold": false,
-    "underline": false,
-    "strikethrough": false
+// Setup UI state based on lock
+function updateUIForLockState(isLocked, lockOwner) {
+  const editButton = document.getElementById('edit-button');
+  
+  if (isLocked) {
+    editButton.disabled = true;
+    editButton.textContent = 'Editor Locked';
+    
+    // Check if we own the lock
+    if (currentSessionId && lockOwner === currentSessionId) {
+      editButton.disabled = false;
+      editButton.textContent = 'Continue Editing';
+    }
+  } else {
+    editButton.disabled = false;
+    editButton.textContent = 'Edit Content';
+    currentSessionId = null;
   }
 }
+
+// Start monitoring
+const lockMonitor = setupEditorLockMonitoring(updateUIForLockState);
+
+// When starting edit session, save the session ID
+async function onEditButtonClick() {
+  if (currentSessionId) {
+    // We're resuming our own edit session
+    const isOwner = await checkSessionLockOwnership(currentSessionId);
+    if (!isOwner) {
+      alert('Your edit session has expired');
+      currentSessionId = null;
+      return;
+    }
+  } else {
+    // Start a new edit session
+    try {
+      const content = {}; // Get current content
+      const response = await startPreview(content);
+      currentSessionId = response.session_id;
+      setupPreviewPings();
+    } catch (err) {
+      alert('Cannot start editing: ' + err.message);
+    }
+  }
+  
+  // Open editor UI...
+}
 ```
 
-### TextFormatting
+### Real-time Event Handling
 
-```json
-{
-  "bold": boolean, // Whether to make the text bold
-  "underline": boolean, // Whether to underline the text
-  "strikethrough": boolean // Whether to strike through the text
+Example for handling brightness and playlist updates:
+
+```javascript
+// Monitor brightness changes
+function setupBrightnessMonitoring(onBrightnessChanged) {
+  const eventSource = new EventSource('/api/events/brightness');
+  
+  eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    onBrightnessChanged(data.brightness);
+  };
+  
+  eventSource.onerror = (err) => {
+    console.error('Brightness SSE error:', err);
+    eventSource.close();
+    
+    // Attempt to reconnect after a delay
+    setTimeout(() => setupBrightnessMonitoring(onBrightnessChanged), 5000);
+  };
+  
+  return {
+    close: () => eventSource.close()
+  };
 }
+
+// Monitor playlist changes
+function setupPlaylistMonitoring(onPlaylistChanged) {
+  const eventSource = new EventSource('/api/events/playlist');
+  
+  eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    onPlaylistChanged(data.items, data.action);
+  };
+  
+  eventSource.onerror = (err) => {
+    console.error('Playlist SSE error:', err);
+    eventSource.close();
+    
+    // Attempt to reconnect after a delay
+    setTimeout(() => setupPlaylistMonitoring(onPlaylistChanged), 5000);
+  };
+  
+  return {
+    close: () => eventSource.close()
+  };
+}
+
+// Usage example
+let brightnessSlider = document.getElementById('brightness-slider');
+let playlistContainer = document.getElementById('playlist-items');
+
+// Update UI when brightness changes remotely
+function onBrightnessChanged(brightness) {
+  brightnessSlider.value = brightness;
+  console.log(`Brightness updated to ${brightness}%`);
+}
+
+// Update UI when playlist changes remotely
+function onPlaylistChanged(items, action) {
+  console.log(`Playlist ${action} detected with ${items.length} items`);
+  
+  // Refresh playlist display
+  playlistContainer.innerHTML = '';
+  items.forEach(item => {
+    const element = document.createElement('div');
+    element.textContent = getItemDisplayName(item);
+    playlistContainer.appendChild(element);
+  });
+}
+
+// When user changes brightness
+brightnessSlider.addEventListener('change', async () => {
+  const brightness = parseInt(brightnessSlider.value);
+  
+  try {
+    await fetch('/api/settings/brightness', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ brightness })
+    });
+  } catch (err) {
+    console.error('Failed to update brightness:', err);
+  }
+});
+
+// Start monitoring
+const brightnessMonitor = setupBrightnessMonitoring(onBrightnessChanged);
+const playlistMonitor = setupPlaylistMonitoring(onPlaylistChanged);
 ```
