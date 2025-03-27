@@ -11,7 +11,6 @@ use log::info;
 pub async fn get_brightness(
     State(combined_state): State<CombinedState>,
 ) -> Json<BrightnessSettings> {
-    info!("Getting current brightness");
     let ((display, _), _) = combined_state;
     let display = display.lock().await;
     

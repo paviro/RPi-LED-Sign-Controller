@@ -362,11 +362,11 @@ impl DisplayManager {
     pub fn enter_preview_mode(&mut self, content: PlayListItem, session_id: String) {
         let already_in_preview = self.preview_mode;
         self.preview_mode = true;
-        self.preview_session_id = Some(session_id);
+        self.preview_session_id = Some(session_id.clone());
         
         if !already_in_preview {
             // First-time preview mode setup
-            info!("Entering preview mode");
+            info!("Entering preview mode with session_id: {}", session_id);
         }
         
         // Use the common helper method
@@ -467,7 +467,7 @@ impl DisplayManager {
 
     pub fn exit_preview_mode(&mut self) {
         if self.preview_mode {
-            info!("Exiting preview mode");
+            info!("Exiting preview mode for session_id: {}", self.preview_session_id.clone().unwrap_or_default());
             self.preview_mode = false;
             self.preview_content = None;
             self.preview_renderer = None;
