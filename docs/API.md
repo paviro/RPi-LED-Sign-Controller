@@ -14,6 +14,8 @@ This document outlines all available API endpoints for the LED Matrix Controller
 - [Settings](#settings)
   - [Get Brightness](#get-brightness)
   - [Update Brightness](#update-brightness)
+- [Events](#events)
+  - [Brightness Events](#brightness-events)
 - [Preview Mode](#preview-mode)
   - [Start Preview Mode](#start-preview-mode)
   - [Exit Preview Mode](#exit-preview-mode)
@@ -305,6 +307,63 @@ Updates the brightness setting.
 ```json
 {
   "brightness": 75
+}
+```
+
+## Events
+
+### Brightness Events
+
+Establishes a Server-Sent Events (SSE) connection to receive real-time brightness updates.
+
+- **URL**: `/api/events/brightness`
+- **Method**: `GET`
+- **Authentication**: None
+- **Response Format**: Server-Sent Events (text/event-stream)
+
+#### Event Types
+
+- **message**: Contains brightness update data
+
+#### Event Data Format
+
+```json
+{
+  "brightness": 75
+}
+```
+
+#### Notes
+
+- Use the EventSource API in browsers to connect to this endpoint
+- The connection will remain open and receive updates whenever brightness changes
+- The server sends keepalive messages to maintain the connection
+- Multiple clients can connect simultaneously to stay in sync
+
+#### JavaScript Example
+
+```javascript
+// Connect to the SSE endpoint
+const eventSource = new EventSource('/api/events/brightness');
+
+// Listen for brightness updates
+eventSource.addEventListener('message', (event) => {
+  const brightnessData = JSON.parse(event.data);
+  console.log('Brightness updated:', brightnessData.brightness);
+});
+
+// Handle connection status
+eventSource.addEventListener('open', () => {
+  console.log('SSE connection established');
+});
+
+eventSource.addEventListener('error', (event) => {
+  console.error('SSE connection error:', event);
+});
+
+// Clean up when component unmounts
+function cleanup() {
+  eventSource.close();
 }
 ```
 

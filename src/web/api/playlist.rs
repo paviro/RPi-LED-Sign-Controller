@@ -1,6 +1,6 @@
 use crate::models::playlist::PlayListItem;
 use crate::models::settings::ReorderRequest;
-use crate::web::api::AppState;
+use crate::web::api::CombinedState;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
@@ -8,22 +8,23 @@ use log::{debug, error, warn};
 
 // Handler for getting all playlist items
 pub async fn get_playlist_items(
-    State((display, _)): State<AppState>,
+    State(combined_state): State<CombinedState>,
 ) -> Json<Vec<PlayListItem>> {
     debug!("Getting all playlist items");
+    let ((display, _), _) = combined_state;
     let display = display.lock().await;
     Json(display.playlist.items.clone())
 }
 
 // Handler for creating a new playlist item
 pub async fn create_playlist_item(
-    State((display, storage)): State<AppState>,
+    State(combined_state): State<CombinedState>,
     Json(item): Json<PlayListItem>,
 ) -> (StatusCode, Json<PlayListItem>) {
     debug!("Creating new playlist item");
     
     // No need to check for empty ID - deserialization already handled it
-    
+    let ((display, storage), _) = combined_state;
     let mut display_guard = display.lock().await;
     display_guard.playlist.items.push(item.clone());
     
@@ -38,11 +39,12 @@ pub async fn create_playlist_item(
 
 // Handler for getting a specific playlist item
 pub async fn get_playlist_item(
-    State((display, _)): State<AppState>,
+    State(combined_state): State<CombinedState>,
     Path(id): Path<String>,
 ) -> Result<Json<PlayListItem>, StatusCode> {
     debug!("Getting playlist item with ID: {}", id);
     
+    let ((display, _), _) = combined_state;
     let display_guard = display.lock().await;
     
     // Find the item with the given ID
@@ -55,12 +57,13 @@ pub async fn get_playlist_item(
 
 // Handler for updating a specific playlist item
 pub async fn update_playlist_item(
-    State((display, storage)): State<AppState>,
+    State(combined_state): State<CombinedState>,
     Path(id): Path<String>,
     Json(updated_item): Json<PlayListItem>,
 ) -> Result<Json<PlayListItem>, StatusCode> {
     debug!("Updating playlist item with ID: {}", id);
     
+    let ((display, storage), _) = combined_state;
     let mut display_guard = display.lock().await;
     
     if let Some(index) = display_guard.playlist.items.iter().position(|item| item.id == id) {
@@ -88,11 +91,12 @@ pub async fn update_playlist_item(
 
 // Handler for deleting a specific playlist item
 pub async fn delete_playlist_item(
-    State((display, storage)): State<AppState>,
+    State(combined_state): State<CombinedState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
     debug!("Deleting playlist item with ID: {}", id);
     
+    let ((display, storage), _) = combined_state;
     let mut display_guard = display.lock().await;
     
     // Find the index of the item with the given ID
@@ -127,11 +131,12 @@ pub async fn delete_playlist_item(
 
 // Handler for reordering playlist items
 pub async fn reorder_playlist_items(
-    State((display, storage)): State<AppState>,
+    State(combined_state): State<CombinedState>,
     Json(reorder_request): Json<ReorderRequest>,
 ) -> Result<Json<Vec<PlayListItem>>, StatusCode> {
     debug!("Reordering playlist items");
     
+    let ((display, storage), _) = combined_state;
     let mut display_guard = display.lock().await;
     
     // Check if all requested IDs exist in the playlist

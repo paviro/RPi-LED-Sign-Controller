@@ -1,5 +1,5 @@
 use crate::models::settings::BrightnessSettings;
-use crate::web::api::AppState;
+use crate::web::api::CombinedState;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicI64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::time::Duration;
@@ -9,9 +9,10 @@ use log::info;
 
 // New handler to get the current brightness
 pub async fn get_brightness(
-    State((display, _)): State<AppState>,
+    State(combined_state): State<CombinedState>,
 ) -> Json<BrightnessSettings> {
     info!("Getting current brightness");
+    let ((display, _), _) = combined_state;
     let display = display.lock().await;
     
     let brightness = display.get_brightness();
@@ -23,7 +24,7 @@ pub async fn get_brightness(
 
 // Handler for updating brightness - applies brightness through color scaling
 pub async fn update_brightness(
-    State((display, storage)): State<AppState>,
+    State(combined_state): State<CombinedState>,
     Json(settings): Json<BrightnessSettings>,
 ) -> Json<BrightnessSettings> {
     // Initialize static variables on first call
@@ -32,6 +33,9 @@ pub async fn update_brightness(
     static LAST_UPDATE_TIME: AtomicI64 = AtomicI64::new(0);
     static SAVE_PENDING: AtomicBool = AtomicBool::new(false);
     static LATEST_TASK_ID: AtomicI64 = AtomicI64::new(0);
+    
+    // Destructure the state
+    let ((display, storage), sse_state) = combined_state;
     
     // Get current timestamp in milliseconds
     let now = SystemTime::now()
@@ -64,6 +68,12 @@ pub async fn update_brightness(
             // Add more descriptive logging with percentages
             info!("Display brightness: {}% -> {}%", prev_brightness, settings.brightness);
         }
+        
+        // Broadcast the brightness change via SSE
+        let sse_state_guard = sse_state.lock().unwrap();
+        sse_state_guard.broadcast_brightness(BrightnessSettings {
+            brightness: settings.brightness
+        });
         
         // Get current brightness for the task
         let brightness = settings.brightness;

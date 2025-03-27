@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 // New structure for brightness settings
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct BrightnessSettings {
     pub brightness: u8,
 }

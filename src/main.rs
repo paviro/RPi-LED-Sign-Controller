@@ -13,6 +13,7 @@ use crate::web::api::playlist::{get_playlist_items, create_playlist_item, get_pl
 use crate::web::api::settings::{get_brightness, update_brightness};
 use crate::web::api::preview::{start_preview_mode, exit_preview_mode, get_preview_mode_status, ping_preview_mode};
 use crate::web::static_assets::{index_handler, next_assets_handler, static_assets_handler};
+use crate::web::api::events::{EventState, brightness_events};
 use axum::{
     routing::{post, get, put, delete},
     Router,
@@ -174,6 +175,12 @@ async fn main() {
         display_loop(display_clone).await;
     });
     
+    // Create SSE state manager
+    let sse_state = EventState::new();
+    
+    // Create the combined state
+    let combined_state = ((display.clone(), storage.clone()), sse_state.clone());
+    
     // API routes with shared storage
     let api_routes = Router::new()
         // New RESTful playlist endpoints
@@ -188,13 +195,16 @@ async fn main() {
         .route("/api/settings/brightness", get(get_brightness))
         .route("/api/settings/brightness", put(update_brightness))
         
+        // New SSE endpoint with changed path
+        .route("/api/events/brightness", get(brightness_events))
+        
         // New preview mode endpoints
         .route("/api/preview", post(start_preview_mode))
         .route("/api/preview", delete(exit_preview_mode))
         .route("/api/preview/status", get(get_preview_mode_status))
         .route("/api/preview/ping", post(ping_preview_mode))
         
-        .with_state((display.clone(), storage));
+        .with_state(combined_state);
     
     // Simplified static assets setup
     let app = Router::new()
