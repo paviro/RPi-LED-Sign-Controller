@@ -173,12 +173,29 @@ Updates the display brightness.
 
 ### Start Preview Mode
 
-Starts preview mode with the specified content.
+Starts preview mode with the specified content. Will fail if another preview session is already active.
 
 - **URL**: `/api/preview`
 - **Method**: `POST`
-- **Body**: Playlist item to preview
-- **Response**: Preview mode response with session ID
+- **Body**: Playlist item to preview (no session ID needed)
+```json
+{
+  "id": "preview-item",
+  "duration": 10,
+  "border_effect": null,
+  "content": {
+    "content_type": "Text",
+    "data": {
+      "text": "Preview Text",
+      "scroll": false,
+      "color": [255, 255, 255],
+      "speed": 50.0,
+      "text_segments": null
+    }
+  }
+}
+```
+- **Response**: Preview mode response with server-generated session ID
 ```json
 {
   "item": {
@@ -199,8 +216,10 @@ Starts preview mode with the specified content.
   "session_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
+- **Error Codes**:
+  - `403` - Another preview session is already active
 
-**Note**: The session ID returned must be saved and used for all subsequent preview operations.
+**Note**: The session ID returned must be saved and used for all subsequent preview operations (update, ping, exit). 
 
 ### Update Preview Content
 
