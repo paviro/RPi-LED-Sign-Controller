@@ -3,7 +3,7 @@ use std::io::{Read, Write, Result as IoResult};
 use std::path::{PathBuf, Path};
 use log::{info, error, debug, warn};
 use std::os::unix::fs::PermissionsExt; // For Unix-style permissions
-use users::{get_user_by_name, get_current_uid};
+use uzers::{get_user_by_name, get_current_uid};
 use std::os::unix::fs::chown; // For chown support
 
 // System-wide storage location

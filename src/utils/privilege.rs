@@ -1,8 +1,8 @@
 // Module for handling privilege-related functionality
 
 use log::info;
-use users::{get_user_by_name, get_current_uid};
-use users::switch::{set_both_uid, set_both_gid};
+use uzers::{get_user_by_name, get_current_uid};
+use uzers::switch::{set_both_uid, set_both_gid};
 use std::ptr;
 use std::io;
 use std::io::{Error, ErrorKind};
