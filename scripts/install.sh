@@ -745,13 +745,13 @@ configure_panel() {
     echo -e "${YELLOW}Please provide the following LED panel information:${NC}"
     
     echo -e "\n${BLUE}Driver Selection (REQUIRED)${NC}"
-    echo "1. binding (C++ binding - recommended for most users)"
-    echo "2. native (Pure Rust library - experimental)"
+    echo "1. native (Pure Rust driver - recommended default)"
+    echo "2. binding (C++ binding driver - legacy fallback)"
     read -p "Select driver type [1]: " driver_choice
     if [[ $driver_choice == "2" ]]; then
-        DRIVER="native"
-    else
         DRIVER="binding"
+    else
+        DRIVER="native"
     fi
     
     echo -e "\n${BLUE}Panel Dimensions${NC}"

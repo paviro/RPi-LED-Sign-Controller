@@ -13,7 +13,7 @@
 - Web-based configuration interface
 - Text scrolling with customizable speed and colors
 - Image support including keyframe animations
-- Two driver options: native Rust or C++ binding
+- Two driver options: native Rust (recommended) or C++ binding
 - Support for various LED matrix panel configurations
 
 ## Quick Install
