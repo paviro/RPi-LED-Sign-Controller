@@ -11,7 +11,7 @@ use crate::storage::app_storage::create_storage;
 use crate::utils::privilege::{check_root_privileges, drop_privileges};
 use crate::web::api::display::get_display_info;
 use crate::web::api::events::{brightness_events, editor_lock_events, playlist_events, EventState};
-use crate::web::api::images::{fetch_image, upload_image, MAX_IMAGE_BYTES};
+use crate::web::api::images::{fetch_image, fetch_image_thumbnail, upload_image, MAX_IMAGE_BYTES};
 use crate::web::api::playlist::{
     create_playlist_item, delete_playlist_item, get_playlist_item, get_playlist_items,
     reorder_playlist_items, update_playlist_item,
@@ -207,6 +207,7 @@ async fn main() {
         // Image upload endpoints
         .route("/api/images", post(upload_image))
         .route("/api/images/:id", get(fetch_image))
+        .route("/api/images/:id/thumbnail", get(fetch_image_thumbnail))
         // Display info endpoint
         .route("/api/display/info", get(get_display_info))
         // Settings endpoints

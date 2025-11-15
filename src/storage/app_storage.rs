@@ -4,6 +4,7 @@ use crate::storage::manager::{paths, StorageManager};
 use log::{debug, error, info};
 use std::collections::HashSet;
 use std::fs;
+use std::io::ErrorKind;
 use std::sync::{Arc, Mutex};
 
 // Unified storage for all application settings
@@ -158,11 +159,37 @@ impl AppStorage {
         }
     }
 
+    pub fn save_thumbnail(&self, image_id: &str, data: &[u8]) -> bool {
+        match self.storage_manager.save_thumbnail_file(image_id, data) {
+            Ok(path) => {
+                info!("Saved thumbnail {} to {:?}", image_id, path);
+                true
+            }
+            Err(err) => {
+                error!("Failed to save thumbnail {}: {}", image_id, err);
+                false
+            }
+        }
+    }
+
     pub fn load_image(&self, image_id: &str) -> Option<Vec<u8>> {
         match self.storage_manager.read_image_file(image_id) {
             Ok(bytes) => Some(bytes),
             Err(err) => {
                 error!("Failed to read image {}: {}", image_id, err);
+                None
+            }
+        }
+    }
+
+    pub fn load_thumbnail(&self, image_id: &str) -> Option<Vec<u8>> {
+        match self.storage_manager.read_thumbnail_file(image_id) {
+            Ok(bytes) => Some(bytes),
+            Err(err) => {
+                debug!(
+                    "Failed to read thumbnail {}, will attempt regeneration if needed: {}",
+                    image_id, err
+                );
                 None
             }
         }
@@ -200,7 +227,8 @@ impl AppStorage {
             }
         };
 
-        let mut removed = 0usize;
+        let mut removed_images = 0usize;
+        let mut removed_thumbnails = 0usize;
 
         for entry in dir_entries {
             let entry = match entry {
@@ -236,24 +264,56 @@ impl AppStorage {
                 continue;
             }
 
+            let mut image_deleted = false;
             match fs::remove_file(&path) {
                 Ok(_) => {
-                    info!("Removed unused image {}", image_id);
-                    removed += 1;
+                    debug!("Removed unused image {}", image_id);
+                    removed_images += 1;
+                    image_deleted = true;
                 }
                 Err(err) => {
-                    error!("Failed to remove unused image {}: {}", image_id, err);
+                    if err.kind() == ErrorKind::NotFound {
+                        debug!(
+                            "Image {} already removed on disk during cleanup, removing thumbnail",
+                            image_id
+                        );
+                        image_deleted = true;
+                    } else {
+                        error!("Failed to remove unused image {}: {}", image_id, err);
+                    }
+                }
+            }
+
+            if image_deleted {
+                let thumbnail_path = self.storage_manager.thumbnail_file_path(image_id);
+                if thumbnail_path.exists() {
+                    match fs::remove_file(&thumbnail_path) {
+                        Ok(_) => {
+                            debug!("Removed thumbnail for image {}", image_id);
+                            removed_thumbnails += 1;
+                        }
+                        Err(err) => {
+                            error!(
+                                "Failed to remove thumbnail for image {}: {}",
+                                image_id, err
+                            );
+                        }
+                    }
                 }
             }
         }
 
-        if removed > 0 {
-            info!("Image cleanup removed {} file(s)", removed);
+        let total_removed = removed_images + removed_thumbnails;
+        if total_removed > 0 {
+            info!(
+                "Image cleanup removed {} file(s) ({} images, {} thumbnails)",
+                total_removed, removed_images, removed_thumbnails
+            );
         } else {
             debug!("Image cleanup found no unused images to remove");
         }
 
-        removed
+        total_removed
     }
 }
 

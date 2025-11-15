@@ -434,7 +434,9 @@ Accepts multipart uploads, validates the payload, converts everything to PNG, an
 {
   "image_id": "c3c8d980-27a7-4a7a-9f56-1f4b1f8bb0fc",
   "width": 128,
-  "height": 64
+  "height": 64,
+  "thumbnail_width": 64,
+  "thumbnail_height": 48
 }
 ```
 - **Error Codes**:
@@ -450,6 +452,16 @@ Returns the stored PNG bytes for previews or diagnostics.
 - **URL**: `/api/images/:id`
 - **Method**: `GET`
 - **Response**: Raw `image/png` body (use as-is in `<img>` tags or `<canvas>`)
+- **Error Codes**:
+  - `404` - No image exists for that `image_id`
+
+### Fetch Image Thumbnail
+
+Returns a pre-generated thumbnail (PNG) for lightweight previews such as playlist cards. Thumbnails are generated automatically during upload and lazily regenerated on demand if missing.
+
+- **URL**: `/api/images/:id/thumbnail`
+- **Method**: `GET`
+- **Response**: Raw `image/png` thumbnail (fits within 128×96 while preserving aspect ratio)
 - **Error Codes**:
   - `404` - No image exists for that `image_id`
 

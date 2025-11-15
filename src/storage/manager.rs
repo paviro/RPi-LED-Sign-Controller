@@ -15,6 +15,7 @@ pub mod paths {
     pub const PLAYLIST_FILE: &str = "playlist.json";
     pub const BRIGHTNESS_FILE: &str = "brightness.json";
     pub const IMAGES_DIR: &str = "images";
+    pub const THUMBNAILS_DIR: &str = "thumbnails";
 }
 
 pub struct StorageManager {
@@ -132,6 +133,10 @@ impl StorageManager {
         self.base_dir.join(paths::IMAGES_DIR)
     }
 
+    fn thumbnails_dir(&self) -> PathBuf {
+        self.base_dir.join(paths::THUMBNAILS_DIR)
+    }
+
     pub fn ensure_images_dir(&self) -> IoResult<()> {
         let images_dir = self.images_dir();
         if !images_dir.exists() {
@@ -141,6 +146,23 @@ impl StorageManager {
             {
                 let permissions = Permissions::from_mode(0o755);
                 fs::set_permissions(&images_dir, permissions)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn ensure_thumbnails_dir(&self) -> IoResult<()> {
+        let thumbnails_dir = self.thumbnails_dir();
+        if !thumbnails_dir.exists() {
+            debug!(
+                "Thumbnails directory doesn't exist, creating: {:?}",
+                thumbnails_dir
+            );
+            fs::create_dir_all(&thumbnails_dir)?;
+            #[cfg(unix)]
+            {
+                let permissions = Permissions::from_mode(0o755);
+                fs::set_permissions(&thumbnails_dir, permissions)?;
             }
         }
         Ok(())
@@ -159,14 +181,37 @@ impl StorageManager {
         Ok(path)
     }
 
+    pub fn save_thumbnail_file(&self, image_id: &str, data: &[u8]) -> IoResult<PathBuf> {
+        self.ensure_thumbnails_dir()?;
+        let path = self.thumbnails_dir().join(format!("{}.png", image_id));
+        debug!("Writing thumbnail file: {:?}", path);
+        fs::write(&path, data)?;
+        #[cfg(unix)]
+        {
+            let permissions = Permissions::from_mode(0o644);
+            fs::set_permissions(&path, permissions)?;
+        }
+        Ok(path)
+    }
+
     pub fn read_image_file(&self, image_id: &str) -> IoResult<Vec<u8>> {
         let path = self.images_dir().join(format!("{}.png", image_id));
         debug!("Reading image file: {:?}", path);
         fs::read(path)
     }
 
+    pub fn read_thumbnail_file(&self, image_id: &str) -> IoResult<Vec<u8>> {
+        let path = self.thumbnails_dir().join(format!("{}.png", image_id));
+        debug!("Reading thumbnail file: {:?}", path);
+        fs::read(path)
+    }
+
     pub fn image_file_path(&self, image_id: &str) -> PathBuf {
         self.images_dir().join(format!("{}.png", image_id))
+    }
+
+    pub fn thumbnail_file_path(&self, image_id: &str) -> PathBuf {
+        self.thumbnails_dir().join(format!("{}.png", image_id))
     }
 
     // Read a file from storage
