@@ -8,6 +8,10 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+REQUIRED_NODE_VERSION="20.9.0"
+NVM_VERSION="v0.39.7"
+NODE_VERSION_TO_USE=""
+
 echo -e "${BLUE}RPi LED Sign Controller - Installation & Update Script${NC}"
 echo -e "==============================================="
 echo -e "GitHub Repository: ${GREEN}https://github.com/paviro/rpi-led-sign-controller${NC}"
@@ -176,6 +180,109 @@ ask_reconfigure() {
     return 0  # Reconfigure
 }
 
+check_system_node_version() {
+    local required_version="$1"
+
+    if command -v node &> /dev/null; then
+        local system_version
+        system_version=$(node -v | tr -d 'v')
+        if dpkg --compare-versions "$system_version" ge "$required_version"; then
+            echo -e "${GREEN}System Node.js version $system_version meets minimum requirement (>= $required_version).${NC}"
+        else
+            echo -e "${YELLOW}System Node.js version $system_version is below required $required_version.${NC}"
+            echo -e "${YELLOW}Node.js will be installed or updated via NVM.${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Node.js not found in system PATH. Installing via NVM...${NC}"
+    fi
+}
+
+ensure_curl_installed() {
+    if ! command -v curl &> /dev/null; then
+        echo -e "${YELLOW}curl not found. Installing curl...${NC}"
+        apt-get update
+        apt-get install -y curl
+        echo -e "${GREEN}curl installed successfully.${NC}"
+    fi
+}
+
+ensure_nvm_installed() {
+    local user="$1"
+    local home_dir="$2"
+    local nvm_dir="$home_dir/.nvm"
+
+    if sudo -u "$user" bash -c "[ -s '$nvm_dir/nvm.sh' ]" >/dev/null 2>&1; then
+        echo -e "${GREEN}NVM already installed for user $user.${NC}"
+        return
+    fi
+
+    echo -e "${YELLOW}NVM not found. Installing NVM ${NVM_VERSION} for user $user...${NC}"
+    ensure_curl_installed
+    sudo -u "$user" bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh | bash"
+    echo -e "${GREEN}NVM installed successfully for user $user.${NC}"
+}
+
+ensure_node_version() {
+    local user="$1"
+    local home_dir="$2"
+    local required_version="$3"
+    local result_var="$4"
+    local nvm_dir="$home_dir/.nvm"
+    local available_versions=""
+    local selected_version=""
+
+    # Get installed versions from nvm, filtering for actual installed versions (lines starting with spaces and 'v')
+    available_versions=$(sudo -u "$user" bash -c 'export NVM_DIR="'"$nvm_dir"'"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; nvm ls --no-colors' 2>/dev/null | grep -E '^\s+v[0-9]+\.[0-9]+\.[0-9]+' | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+' || true)
+    
+    if [ -n "$available_versions" ]; then
+        # Find the highest version that meets the requirement
+        while IFS= read -r version; do
+            version_number=$(echo "$version" | sed 's/^v//')
+            if dpkg --compare-versions "$version_number" ge "$required_version"; then
+                if [ -z "$selected_version" ] || dpkg --compare-versions "$version_number" gt "$selected_version"; then
+                    selected_version="$version_number"
+                fi
+            fi
+        done <<< "$available_versions"
+    fi
+
+    if [ -z "$selected_version" ]; then
+        echo -e "${YELLOW}Installing Node.js $required_version via NVM...${NC}"
+        sudo -u "$user" bash -c 'export NVM_DIR="'"$nvm_dir"'"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; nvm install '"$required_version"
+        selected_version="$required_version"
+    else
+        echo -e "${GREEN}Using existing Node.js $selected_version via NVM.${NC}"
+    fi
+
+    # Try to set alias and use the selected version; if it fails, reinstall
+    if ! sudo -u "$user" bash -c 'export NVM_DIR="'"$nvm_dir"'"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; nvm alias default '"$selected_version"' >/dev/null 2>&1'; then
+        echo -e "${YELLOW}Selected version not available. Installing Node.js $required_version via NVM...${NC}"
+        sudo -u "$user" bash -c 'export NVM_DIR="'"$nvm_dir"'"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; nvm install '"$required_version"
+        selected_version="$required_version"
+        sudo -u "$user" bash -c 'export NVM_DIR="'"$nvm_dir"'"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; nvm alias default '"$selected_version"' >/dev/null 2>&1'
+    fi
+    
+    sudo -u "$user" bash -c 'export NVM_DIR="'"$nvm_dir"'"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; nvm use --silent '"$selected_version"' 2>&1' >/dev/null || true
+
+    eval "$result_var=\"$selected_version\""
+}
+
+run_with_node() {
+    local user="$1"
+    local home_dir="$2"
+    local node_version="$3"
+    shift 3
+    local command="$*"
+    local nvm_dir="$home_dir/.nvm"
+
+    if [ -z "$node_version" ]; then
+        echo -e "${RED}Node.js version is not set. Cannot run Node-dependent command.${NC}"
+        exit 1
+    fi
+
+    sudo -u "$user" bash -c 'export NVM_DIR="'"$nvm_dir"'"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; nvm use --silent '"$node_version"' >/dev/null; '"$command"
+}
+
 # Call this function early in the script, right after the Raspberry Pi check
 check_debian_based
 
@@ -199,15 +306,10 @@ else
     echo -e "${GREEN}Git is already installed.${NC}"
 fi
 
-# Check for and install Node.js if necessary
-if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
-    echo -e "${YELLOW}Node.js not found. Installing Node.js...${NC}"
-    apt-get update
-    apt-get install -y nodejs npm
-    echo -e "${GREEN}Node.js installed successfully.${NC}"
-else
-    echo -e "${GREEN}Node.js is already installed.${NC}"
-fi
+# Check for and install Node.js (via NVM) if necessary
+check_system_node_version "$REQUIRED_NODE_VERSION"
+ensure_nvm_installed "$ACTUAL_USER" "$ACTUAL_HOME"
+ensure_node_version "$ACTUAL_USER" "$ACTUAL_HOME" "$REQUIRED_NODE_VERSION" NODE_VERSION_TO_USE
 
 # Check for and install rust if necessary
 if ! sudo -u $ACTUAL_USER bash -c "source $ACTUAL_HOME/.cargo/env 2>/dev/null && command -v rustc &> /dev/null && command -v cargo &> /dev/null"; then
@@ -264,6 +366,9 @@ if [ -d "$REPO_DIR" ]; then
     fi
 fi
 
+# Track if we just cloned the repo (so we know to build it)
+REPO_JUST_CLONED=0
+
 # Determine if we need to clone or navigate to the repository
 if [ $INSIDE_REPO -eq 0 ]; then
     # We're not in the repo directory, check if it exists at the standard location
@@ -279,6 +384,7 @@ if [ $INSIDE_REPO -eq 0 ]; then
         # Clone the repository as the regular user
         sudo -u $ACTUAL_USER git clone https://github.com/paviro/rpi-led-sign-controller.git "$REPO_DIR"
         cd "$REPO_DIR"
+        REPO_JUST_CLONED=1
     fi
 fi
 
@@ -374,6 +480,9 @@ else
     echo -e "${YELLOW}Frontend repository not found. Will clone it.${NC}"
 fi
 
+# Track if we just cloned the frontend repo
+FRONTEND_JUST_CLONED=0
+
 # Clone frontend repository if it doesn't exist
 if [ $FRONTEND_REPO_EXISTS -eq 0 ]; then
     echo -e "${YELLOW}Creating frontend repository directory...${NC}"
@@ -384,6 +493,7 @@ if [ $FRONTEND_REPO_EXISTS -eq 0 ]; then
     # Clone the repository as the regular user
     sudo -u $ACTUAL_USER git clone https://github.com/paviro/RPi-LED-Sign-Controller-Frontend.git "$FRONTEND_REPO_DIR"
     echo -e "${GREEN}Frontend repository cloned successfully.${NC}"
+    FRONTEND_JUST_CLONED=1
 fi
 
 # Initialize update flags with default values
@@ -391,8 +501,14 @@ BACKEND_UPDATES_AVAILABLE=0
 FRONTEND_UPDATES_AVAILABLE=0
 FRONTEND_REBUILD_NEEDED=0
 
+# If we just cloned the backend repo, mark it as needing a build
+if [ $REPO_JUST_CLONED -eq 1 ]; then
+    BACKEND_UPDATES_AVAILABLE=1
+    echo -e "${GREEN}Backend repository freshly cloned.${NC}"
+fi
+
 # Check for backend updates
-if [ $APP_INSTALLED -eq 1 ]; then
+if [ $APP_INSTALLED -eq 1 ] && [ $REPO_JUST_CLONED -eq 0 ]; then
     echo -e "${YELLOW}Fetching the latest changes from GitHub for backend...${NC}"
     cd "$REPO_DIR"
     sudo -u $ACTUAL_USER git fetch
@@ -430,11 +546,17 @@ if [ $APP_INSTALLED -eq 1 ]; then
     fi
 fi
 
+# If frontend was just cloned, mark it for rebuild
+if [ $FRONTEND_JUST_CLONED -eq 1 ]; then
+    FRONTEND_REBUILD_NEEDED=1
+    echo -e "${GREEN}Frontend repository freshly cloned.${NC}"
+fi
+
 # Check for frontend updates
 echo -e "${YELLOW}Checking for frontend updates...${NC}"
 
-# Only if frontend repo exists, check for updates
-if [ $FRONTEND_REPO_EXISTS -eq 1 ]; then
+# Only if frontend repo exists and wasn't just cloned, check for updates
+if [ $FRONTEND_REPO_EXISTS -eq 1 ] && [ $FRONTEND_JUST_CLONED -eq 0 ]; then
     cd "$FRONTEND_REPO_DIR"
     sudo -u $ACTUAL_USER git fetch
     
@@ -463,9 +585,6 @@ if [ $FRONTEND_REPO_EXISTS -eq 1 ]; then
     else
         echo -e "${GREEN}Frontend repository is already up to date.${NC}"
     fi
-else
-    # If frontend was newly cloned, we need to build it
-    FRONTEND_REBUILD_NEEDED=1
 fi
 
 # Check if frontend has already been compiled and copied - with improved detection for deleted files
@@ -488,10 +607,10 @@ if [ $FRONTEND_REBUILD_NEEDED -eq 1 ] || [ $BACKEND_UPDATES_AVAILABLE -eq 1 ] ||
     
     # Install dependencies and build
     echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-    sudo -u $ACTUAL_USER npm install
+    run_with_node "$ACTUAL_USER" "$ACTUAL_HOME" "$NODE_VERSION_TO_USE" npm install
     
     echo -e "${YELLOW}Building frontend...${NC}"
-    sudo -u $ACTUAL_USER npm run build
+    run_with_node "$ACTUAL_USER" "$ACTUAL_HOME" "$NODE_VERSION_TO_USE" npm run build
     
     echo -e "${GREEN}Frontend built successfully.${NC}"
     

@@ -28,7 +28,7 @@ echo -e "  • Stop and remove the RPi LED Sign Controller systemd service"
 echo -e "  • Remove the application binary from /usr/local/bin"
 echo -e "  • Offer to remove the source code from /usr/local/src/rpi-led-sign-controller"
 echo -e "  • Check for and offer to remove data files in /var/lib/led-matrix-controller"
-echo -e "  • Ask if you want to uninstall Rust and Git"
+echo -e "  • Ask if you want to uninstall Rust, Git, and NVM"
 echo -e "  • Offer to clean up unused packages with apt autoremove"
 echo -e "\n${YELLOW}You'll be asked to confirm each step of the process.${NC}"
 
@@ -218,20 +218,36 @@ if [ -d "$FRONTEND_REPO_DIR" ]; then
     fi
 fi
 
-# Ask about uninstalling Node.js
-echo -e "\n${BLUE}Node.js Uninstallation${NC}"
-if command -v node &> /dev/null && command -v npm &> /dev/null; then
-    REMOVE_NODE=$(get_yes_no "Do you want to uninstall Node.js?" "n")
+# Ask about uninstalling NVM
+echo -e "\n${BLUE}NVM (Node Version Manager) Uninstallation${NC}"
+NVM_DIR="$ACTUAL_HOME/.nvm"
+if [ -d "$NVM_DIR" ]; then
+    REMOVE_NVM=$(get_yes_no "Do you want to uninstall NVM and all installed Node.js versions?" "n")
     
-    if [ "$REMOVE_NODE" -eq 1 ]; then
-        echo -e "${YELLOW}Uninstalling Node.js...${NC}"
-        apt-get remove -y nodejs npm
-        echo -e "${GREEN}Node.js uninstalled successfully.${NC}"
+    if [ "$REMOVE_NVM" -eq 1 ]; then
+        echo -e "${YELLOW}Uninstalling NVM for user $ACTUAL_USER...${NC}"
+        # Remove the NVM directory
+        rm -rf "$NVM_DIR"
+        
+        # Remove NVM lines from shell configuration files
+        for rc_file in "$ACTUAL_HOME/.bashrc" "$ACTUAL_HOME/.bash_profile" "$ACTUAL_HOME/.zshrc" "$ACTUAL_HOME/.profile"; do
+            if [ -f "$rc_file" ]; then
+                # Create a backup
+                cp "$rc_file" "${rc_file}.nvm-backup"
+                # Remove NVM-related lines
+                sed -i '/NVM_DIR/d' "$rc_file"
+                sed -i '/nvm\.sh/d' "$rc_file"
+                sed -i '/bash_completion/d' "$rc_file"
+            fi
+        done
+        
+        echo -e "${GREEN}NVM uninstalled successfully.${NC}"
+        echo -e "${BLUE}Shell configuration backups were created with .nvm-backup extension.${NC}"
     else
-        echo -e "${BLUE}Keeping Node.js installation.${NC}"
+        echo -e "${BLUE}Keeping NVM installation.${NC}"
     fi
 else
-    echo -e "${GREEN}Node.js is not installed.${NC}"
+    echo -e "${GREEN}NVM is not installed for user $ACTUAL_USER.${NC}"
 fi
 
 echo -e "\n${GREEN}Uninstallation complete!${NC}"
