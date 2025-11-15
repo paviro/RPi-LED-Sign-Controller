@@ -1,3 +1,4 @@
+pub mod animation;
 pub mod border_effects;
 pub mod clock;
 pub mod content;

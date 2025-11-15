@@ -1,3 +1,4 @@
+use crate::models::animation::AnimationContent;
 use crate::models::clock::ClockContent;
 use crate::models::image::ImageContent;
 use crate::models::text::TextContent;
@@ -8,8 +9,8 @@ use serde::{Deserialize, Serialize};
 pub enum ContentType {
     Text,
     Image,
+    Animation,
     Clock,
-    // Future types will be added here (Animation, etc.)
 }
 
 // Provide default implementation
@@ -33,5 +34,6 @@ pub struct ContentData {
 pub enum ContentDetails {
     Text(TextContent),
     Image(ImageContent),
+    Animation(AnimationContent),
     Clock(ClockContent),
 }

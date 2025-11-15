@@ -1,9 +1,11 @@
+mod animation;
 mod border;
 mod clock;
 mod context;
 mod image;
 mod text;
 
+pub use animation::AnimationRenderer;
 pub use border::BorderRenderer;
 pub use clock::ClockRenderer;
 pub use context::RenderContext;
@@ -54,6 +56,11 @@ pub fn create_renderer(content: &PlayListItem, ctx: RenderContext) -> Box<dyn Re
             ContentDetails::Image(_) => Box::new(ImageRenderer::new(content, ctx)),
             #[allow(unreachable_patterns)]
             _ => panic!("Content type mismatch: expected Image content details"),
+        },
+        ContentType::Animation => match &content.content.data {
+            ContentDetails::Animation(_) => Box::new(AnimationRenderer::new(content, ctx)),
+            #[allow(unreachable_patterns)]
+            _ => panic!("Content type mismatch: expected Animation content details"),
         },
         ContentType::Clock => match &content.content.data {
             ContentDetails::Clock(_) => Box::new(ClockRenderer::new(content, ctx)),

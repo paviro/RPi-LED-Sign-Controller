@@ -1,6 +1,7 @@
 use crate::config::DisplayConfig;
 use crate::display::driver::{LedCanvas, LedDriver};
 use crate::display::renderer::{create_border_renderer, create_renderer, RenderContext, Renderer};
+use crate::models::animation::AnimationContent;
 use crate::models::border_effects::BorderEffect;
 use crate::models::clock::ClockFormat;
 use crate::models::content::{ContentData, ContentDetails, ContentType};
@@ -121,6 +122,19 @@ impl DisplayManager {
                         "minutes only"
                     };
                     format!("Clock: {} ({})", format_label, seconds_label)
+                }
+                ContentDetails::Animation(animation_content) => {
+                    let preset = match animation_content {
+                        AnimationContent::Pulse { .. } => "Pulse",
+                        AnimationContent::PaletteWave { .. } => "Palette Wave",
+                        AnimationContent::DualPulse { .. } => "Dual Pulse",
+                        AnimationContent::ColorFade { .. } => "Color Fade",
+                        AnimationContent::Strobe { .. } => "Strobe",
+                        AnimationContent::Sparkle { .. } => "Sparkle",
+                        AnimationContent::MosaicTwinkle { .. } => "Mosaic Twinkle",
+                        AnimationContent::Plasma { .. } => "Plasma Flow",
+                    };
+                    format!("Animation: {}", preset)
                 }
             };
             info!("  Item {}: {}", i + 1, content_desc);

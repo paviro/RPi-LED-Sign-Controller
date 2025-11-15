@@ -1,4 +1,5 @@
 use crate::display::manager::DisplayManager;
+use crate::models::animation::AnimationContent;
 use crate::models::clock::ClockFormat;
 use crate::models::content::ContentDetails;
 use crate::web::api::events::EventState;
@@ -69,6 +70,19 @@ pub async fn display_loop(
                         "minutes only"
                     };
                     format!("Clock: {} ({})", format_label, seconds_label)
+                }
+                ContentDetails::Animation(animation_content) => {
+                    let preset = match animation_content {
+                        AnimationContent::Pulse { .. } => "Pulse",
+                        AnimationContent::PaletteWave { .. } => "Palette Wave",
+                        AnimationContent::DualPulse { .. } => "Dual Pulse",
+                        AnimationContent::ColorFade { .. } => "Color Fade",
+                        AnimationContent::Strobe { .. } => "Strobe",
+                        AnimationContent::Sparkle { .. } => "Sparkle",
+                        AnimationContent::MosaicTwinkle { .. } => "Mosaic Twinkle",
+                        AnimationContent::Plasma { .. } => "Plasma Flow",
+                    };
+                    format!("Animation: {}", preset)
                 }
             };
 

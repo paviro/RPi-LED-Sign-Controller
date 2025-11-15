@@ -120,6 +120,21 @@ impl<'de> Deserialize<'de> for PlayListItem {
                     ));
                 }
             }
+            ContentDetails::Animation(animation_content) => {
+                if helper.duration.is_none() {
+                    return Err(serde::de::Error::custom(
+                        "Animation content requires 'duration' instead of 'repeat_count'",
+                    ));
+                }
+                if helper.repeat_count.is_some() {
+                    return Err(serde::de::Error::custom(
+                        "Animation content requires 'duration' and does not allow 'repeat_count'",
+                    ));
+                }
+                if let Err(err) = animation_content.validate() {
+                    return Err(serde::de::Error::custom(err));
+                }
+            }
         }
 
         // Determine whether repeat_count is required based on content
@@ -127,6 +142,7 @@ impl<'de> Deserialize<'de> for PlayListItem {
             ContentDetails::Text(text_content) => text_content.scroll,
             ContentDetails::Image(image_content) => image_content.animation.is_some(),
             ContentDetails::Clock(_) => false,
+            ContentDetails::Animation(_) => false,
         };
 
         // Check if repeat_count is required but missing
@@ -139,6 +155,9 @@ impl<'de> Deserialize<'de> for PlayListItem {
                     "Animated images require 'repeat_count' instead of 'duration'"
                 }
                 ContentDetails::Clock(_) => unreachable!(),
+                ContentDetails::Animation(_) => {
+                    "Animation content requires 'duration' instead of 'repeat_count'"
+                }
             };
             return Err(serde::de::Error::custom(msg));
         }
