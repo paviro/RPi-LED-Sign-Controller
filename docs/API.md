@@ -10,6 +10,9 @@ This document describes the API endpoints available for the LED sign controller 
   - [Update Playlist Item](#update-playlist-item)
   - [Delete Playlist Item](#delete-playlist-item)
   - [Reorder Playlist Items](#reorder-playlist-items)
+- [Content Payloads](#content-payloads)
+  - [Text Content](#text-content)
+  - [Image Content](#image-content)
 - [Settings](#settings)
   - [Get Brightness](#get-brightness)
   - [Update Brightness](#update-brightness)
@@ -20,6 +23,9 @@ This document describes the API endpoints available for the LED sign controller 
   - [Check Preview Status](#check-preview-status)
   - [Ping Preview Session](#ping-preview-session)
   - [Check Session Ownership](#check-session-ownership)
+- [Image Library](#image-library)
+  - [Upload Image](#upload-image)
+  - [Fetch Image](#fetch-image)
 - [Real-time Events](#real-time-events)
   - [Brightness Events](#brightness-events)
   - [Editor Lock Events](#editor-lock-events)
@@ -43,13 +49,37 @@ Retrieves all items in the playlist.
     "repeat_count": null,
     "border_effect": { "Rainbow": null },
     "content": {
-      "content_type": "Text",
+      "type": "Text",
       "data": {
+        "type": "Text",
         "text": "Hello World",
         "scroll": false,
         "color": [255, 255, 255],
         "speed": 50.0,
         "text_segments": null
+      }
+    }
+  },
+  {
+    "id": "44dc1488-be53-4d2d-b6b8-30c4fee522e8",
+    "duration": null,
+    "repeat_count": 3,
+    "border_effect": null,
+    "content": {
+      "type": "Image",
+      "data": {
+        "type": "Image",
+        "image_id": "c3c8d980-27a7-4a7a-9f56-1f4b1f8bb0fc",
+        "natural_width": 128,
+        "natural_height": 64,
+        "transform": { "x": 0, "y": 0, "scale": 1 },
+        "animation": {
+          "keyframes": [
+            { "timestamp_ms": 0, "x": 0, "y": 0, "scale": 1 },
+            { "timestamp_ms": 2000, "x": -16, "y": 0, "scale": 1.5 }
+          ],
+          "iterations": null
+        }
       }
     }
   }
@@ -72,8 +102,9 @@ Creates a new playlist item.
   "repeat_count": null,
   "border_effect": { "Rainbow": null },
   "content": {
-    "content_type": "Text",
+    "type": "Text",
     "data": {
+      "type": "Text",
       "text": "Hello World",
       "scroll": false,
       "color": [255, 255, 255],
@@ -131,6 +162,73 @@ Reorders all playlist items.
 - **Error Codes**:
   - `400` - Invalid reorder request (missing items or incorrect count)
 
+## Content Payloads
+
+Every playlist or preview item contains a `content` object. The outer `content.type` helps the UI/editor know which tool to render, while the nested `content.data` is a tagged union that repeats the `type` field and carries the actual properties for that content kind.
+
+### Text Content
+
+Text payloads are identical to the original implementation but now live inside `content.data`.
+
+- `text` - Raw UTF-8 text
+- `scroll` - When `true`, the message scrolls and you must provide `repeat_count` instead of `duration`
+- `color` - Base RGB color triplet
+- `speed` - Scroll speed (0-100)
+- `text_segments` - Optional overrides for colors/formatting (see frontend docs)
+
+Static text (`scroll: false`) requires `duration` and must omit `repeat_count`. Scrolling text requires `repeat_count` and must omit `duration`.
+
+```json
+"content": {
+  "type": "Text",
+  "data": {
+    "type": "Text",
+    "text": "Welcome!",
+    "scroll": true,
+    "color": [255, 255, 255],
+    "speed": 50,
+    "text_segments": [
+      { "start": 0, "end": 7, "color": [255, 0, 0] }
+    ]
+  }
+}
+```
+
+### Image Content
+
+Images can be static or animated. Upload images via `POST /api/images` to obtain an `image_id`. The backend stores the binary PNG under `/var/lib/led-matrix-controller/images`, and playlist items simply reference that ID.
+
+- `image_id` - UUID returned by the upload endpoint
+- `natural_width` / `natural_height` - Source dimensions so the editor can scale accurately
+- `transform` - `{ "x": number, "y": number, "scale": number }` describing how the bitmap is positioned relative to the panel's top-left corner
+- `animation` *(optional)* - Keyframe animation with at least two entries when present
+  - `keyframes` - Each entry has `timestamp_ms`, `x`, `y`, and `scale`
+  - `iterations` - Number of loops (`null` = infinite)
+
+Static images require `duration` and must omit `repeat_count`. Animated images (two or more keyframes) require `repeat_count`, must omit `duration`, and the frontend enforces the minimum keyframe count.
+
+```json
+"content": {
+  "type": "Image",
+  "data": {
+    "type": "Image",
+    "image_id": "c3c8d980-27a7-4a7a-9f56-1f4b1f8bb0fc",
+    "natural_width": 128,
+    "natural_height": 64,
+    "transform": { "x": -8, "y": 0, "scale": 1.25 },
+    "animation": {
+      "keyframes": [
+        { "timestamp_ms": 0, "x": 0, "y": 0, "scale": 1 },
+        { "timestamp_ms": 2500, "x": -16, "y": 0, "scale": 1.5 }
+      ],
+      "iterations": null
+    }
+  }
+}
+```
+
+Set `"animation": null` (or omit it) to display a static image with a fixed transform.
+
 ## Settings
 
 ### Get Brightness
@@ -180,8 +278,9 @@ Starts preview mode with the specified content. Will fail if another preview ses
   "duration": 10,
   "border_effect": null,
   "content": {
-    "content_type": "Text",
+    "type": "Text",
     "data": {
+      "type": "Text",
       "text": "Preview Text",
       "scroll": false,
       "color": [255, 255, 255],
@@ -199,8 +298,9 @@ Starts preview mode with the specified content. Will fail if another preview ses
     "duration": 10,
     "border_effect": null,
     "content": {
-      "content_type": "Text",
+      "type": "Text",
       "data": {
+        "type": "Text",
         "text": "Preview Text",
         "scroll": false,
         "color": [255, 255, 255],
@@ -231,8 +331,9 @@ Updates the content being previewed.
     "duration": 10,
     "border_effect": null,
     "content": {
-      "content_type": "Text",
+      "type": "Text",
       "data": {
+        "type": "Text",
         "text": "Updated Preview Text",
         "scroll": false,
         "color": [255, 0, 0],
@@ -316,6 +417,41 @@ Checks if a session owns the current preview lock.
   "is_owner": true
 }
 ```
+
+## Image Library
+
+Upload an image once and reference it across multiple playlist items via the returned `image_id`.
+
+### Upload Image
+
+Accepts multipart uploads, validates the payload, converts everything to PNG, and stores the bytes under `/var/lib/led-matrix-controller/images`.
+
+- **URL**: `/api/images`
+- **Method**: `POST`
+- **Body**: `multipart/form-data` with a single `file` field (PNG/JPEG/GIF, max 30 MB)
+- **Response**:
+```json
+{
+  "image_id": "c3c8d980-27a7-4a7a-9f56-1f4b1f8bb0fc",
+  "width": 128,
+  "height": 64
+}
+```
+- **Error Codes**:
+  - `400` - Invalid multipart payload or empty file
+  - `413` - File exceeds 30 MB
+  - `415` - Unsupported image format/decoder failure
+  - `500` - Failed to persist the PNG
+
+### Fetch Image
+
+Returns the stored PNG bytes for previews or diagnostics.
+
+- **URL**: `/api/images/:id`
+- **Method**: `GET`
+- **Response**: Raw `image/png` body (use as-is in `<img>` tags or `<canvas>`)
+- **Error Codes**:
+  - `404` - No image exists for that `image_id`
 
 ## Real-time Events
 
