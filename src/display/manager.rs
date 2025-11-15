@@ -2,6 +2,7 @@ use crate::config::DisplayConfig;
 use crate::display::driver::{LedCanvas, LedDriver};
 use crate::display::renderer::{create_border_renderer, create_renderer, RenderContext, Renderer};
 use crate::models::border_effects::BorderEffect;
+use crate::models::clock::ClockFormat;
 use crate::models::content::{ContentData, ContentDetails, ContentType};
 use crate::models::playlist::{PlayListItem, Playlist};
 use crate::models::text::TextContent;
@@ -109,6 +110,18 @@ impl DisplayManager {
                     image_content.natural_width,
                     image_content.natural_height
                 ),
+                ContentDetails::Clock(clock_content) => {
+                    let format_label = match clock_content.format {
+                        ClockFormat::TwentyFourHour => "24h",
+                        ClockFormat::TwelveHour => "12h",
+                    };
+                    let seconds_label = if clock_content.show_seconds {
+                        "showing seconds"
+                    } else {
+                        "minutes only"
+                    };
+                    format!("Clock: {} ({})", format_label, seconds_label)
+                }
             };
             info!("  Item {}: {}", i + 1, content_desc);
         }

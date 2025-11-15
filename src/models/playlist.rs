@@ -108,12 +108,25 @@ impl<'de> Deserialize<'de> for PlayListItem {
                     ));
                 }
             }
+            ContentDetails::Clock(_) => {
+                if helper.duration.is_none() {
+                    return Err(serde::de::Error::custom(
+                        "Clock content requires 'duration' instead of 'repeat_count'",
+                    ));
+                }
+                if helper.repeat_count.is_some() {
+                    return Err(serde::de::Error::custom(
+                        "Clock content uses 'duration' instead of 'repeat_count'",
+                    ));
+                }
+            }
         }
 
         // Determine whether repeat_count is required based on content
         let requires_repeat_count = match &helper.content.data {
             ContentDetails::Text(text_content) => text_content.scroll,
             ContentDetails::Image(image_content) => image_content.animation.is_some(),
+            ContentDetails::Clock(_) => false,
         };
 
         // Check if repeat_count is required but missing
@@ -125,6 +138,7 @@ impl<'de> Deserialize<'de> for PlayListItem {
                 ContentDetails::Image(_) => {
                     "Animated images require 'repeat_count' instead of 'duration'"
                 }
+                ContentDetails::Clock(_) => unreachable!(),
             };
             return Err(serde::de::Error::custom(msg));
         }

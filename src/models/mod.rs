@@ -1,4 +1,5 @@
 pub mod border_effects;
+pub mod clock;
 pub mod content;
 pub mod image;
 pub mod playlist;

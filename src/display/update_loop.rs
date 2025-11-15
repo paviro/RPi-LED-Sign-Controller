@@ -1,4 +1,5 @@
 use crate::display::manager::DisplayManager;
+use crate::models::clock::ClockFormat;
 use crate::models::content::ContentDetails;
 use crate::web::api::events::EventState;
 use log::info;
@@ -57,6 +58,18 @@ pub async fn display_loop(
                     image_content.natural_width,
                     image_content.natural_height
                 ),
+                ContentDetails::Clock(clock_content) => {
+                    let format_label = match clock_content.format {
+                        ClockFormat::TwentyFourHour => "24h",
+                        ClockFormat::TwelveHour => "12h",
+                    };
+                    let seconds_label = if clock_content.show_seconds {
+                        "showing seconds"
+                    } else {
+                        "minutes only"
+                    };
+                    format!("Clock: {} ({})", format_label, seconds_label)
+                }
             };
 
             info!(

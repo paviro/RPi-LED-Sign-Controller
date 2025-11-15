@@ -229,6 +229,28 @@ Static images require `duration` and must omit `repeat_count`. Animated images (
 
 Set `"animation": null` (or omit it) to display a static image with a fixed transform.
 
+### Clock Content
+
+Clock entries render the Raspberry Pi's local time centered on the display. They always use `duration` for timing and must omit `repeat_count`.
+
+- `format` - `"24h"` or `"12h"`
+- `show_seconds` - `true` to update every second, `false` for minutes only
+- `color` - RGB tuple for the digits
+
+```json
+"content": {
+  "type": "Clock",
+  "data": {
+    "type": "Clock",
+    "format": "24h",
+    "show_seconds": false,
+    "color": [255, 255, 255]
+  }
+}
+```
+
+Clock items support the same border effects as other playlist entries.
+
 ## Settings
 
 ### Get Brightness
