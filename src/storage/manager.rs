@@ -165,17 +165,6 @@ impl StorageManager {
         fs::read(path)
     }
 
-    pub fn delete_image_file(&self, image_id: &str) -> IoResult<()> {
-        let path = self.images_dir().join(format!("{}.png", image_id));
-        if path.exists() {
-            debug!("Deleting image file: {:?}", path);
-            fs::remove_file(path)?;
-        } else {
-            debug!("Image file does not exist, skipping delete: {:?}", path);
-        }
-        Ok(())
-    }
-
     pub fn image_file_path(&self, image_id: &str) -> PathBuf {
         self.images_dir().join(format!("{}.png", image_id))
     }

@@ -1,6 +1,9 @@
+use crate::models::content::ContentDetails;
 use crate::models::playlist::Playlist;
 use crate::storage::manager::{paths, StorageManager};
 use log::{debug, error, info};
+use std::collections::HashSet;
+use std::fs;
 use std::sync::{Arc, Mutex};
 
 // Unified storage for all application settings
@@ -165,18 +168,92 @@ impl AppStorage {
         }
     }
 
-    pub fn delete_image(&self, image_id: &str) -> bool {
-        match self.storage_manager.delete_image_file(image_id) {
-            Ok(_) => true,
-            Err(err) => {
-                error!("Failed to delete image {}: {}", image_id, err);
-                false
-            }
-        }
-    }
-
     pub fn image_path(&self, image_id: &str) -> std::path::PathBuf {
         self.storage_manager.image_file_path(image_id)
+    }
+
+    pub fn cleanup_unused_images(&self, playlist: &Playlist) -> usize {
+        let referenced_ids: HashSet<String> = playlist
+            .items
+            .iter()
+            .filter_map(|item| match &item.content.data {
+                ContentDetails::Image(image_content) => Some(image_content.image_id.clone()),
+                _ => None,
+            })
+            .collect();
+
+        if let Err(err) = self.storage_manager.ensure_images_dir() {
+            error!("Unable to ensure images directory before cleanup: {}", err);
+            return 0;
+        }
+
+        let images_dir = self.storage_manager.get_file_path(paths::IMAGES_DIR);
+
+        let dir_entries = match fs::read_dir(&images_dir) {
+            Ok(entries) => entries,
+            Err(err) => {
+                debug!(
+                    "Skipping image cleanup; could not read {:?}: {}",
+                    images_dir, err
+                );
+                return 0;
+            }
+        };
+
+        let mut removed = 0usize;
+
+        for entry in dir_entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(err) => {
+                    debug!("Failed to inspect image directory entry: {}", err);
+                    continue;
+                }
+            };
+
+            let path = entry.path();
+
+            if !path.is_file() {
+                continue;
+            }
+
+            let is_png = path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("png"))
+                .unwrap_or(false);
+
+            if !is_png {
+                continue;
+            }
+
+            let image_id = match path.file_stem().and_then(|stem| stem.to_str()) {
+                Some(stem) => stem,
+                None => continue,
+            };
+
+            if referenced_ids.contains(image_id) {
+                continue;
+            }
+
+            match fs::remove_file(&path) {
+                Ok(_) => {
+                    info!("Removed unused image {}", image_id);
+                    removed += 1;
+                }
+                Err(err) => {
+                    error!("Failed to remove unused image {}: {}", image_id, err);
+                }
+            }
+        }
+
+        if removed > 0 {
+            info!("Image cleanup removed {} file(s)", removed);
+        } else {
+            debug!("Image cleanup found no unused images to remove");
+        }
+
+        removed
     }
 }
 

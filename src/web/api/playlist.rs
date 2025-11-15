@@ -43,7 +43,9 @@ pub async fn create_playlist_item(
     display_guard.playlist.items.push(item.clone());
 
     // Save updated playlist
-    if !storage_guard.save_playlist(&display_guard.playlist) {
+    if storage_guard.save_playlist(&display_guard.playlist) {
+        storage_guard.cleanup_unused_images(&display_guard.playlist);
+    } else {
         error!("Failed to save playlist after adding new item");
     }
     drop(storage_guard);
@@ -107,28 +109,16 @@ pub async fn update_playlist_item(
             }
         }
 
-        let existing_item = display_guard.playlist.items[index].clone();
-        let old_image_id = extract_image_id(&existing_item).map(|s| s.to_string());
-
         let mut item_to_update = updated_item;
         item_to_update.id = id;
-        let new_image_id = extract_image_id(&item_to_update).map(|s| s.to_string());
 
         display_guard.playlist.items[index] = item_to_update.clone();
 
         // Save updated playlist
-        if !storage_guard.save_playlist(&display_guard.playlist) {
+        if storage_guard.save_playlist(&display_guard.playlist) {
+            storage_guard.cleanup_unused_images(&display_guard.playlist);
+        } else {
             error!("Failed to save playlist after updating item");
-        }
-
-        if let Some(old_id) = old_image_id {
-            if new_image_id.as_deref() != Some(old_id.as_str())
-                && !image_is_referenced(&display_guard.playlist.items, &old_id)
-            {
-                if !storage_guard.delete_image(&old_id) {
-                    error!("Failed to delete unused image {}", old_id);
-                }
-            }
         }
         drop(storage_guard);
 
@@ -169,8 +159,7 @@ pub async fn delete_playlist_item(
         .position(|item| item.id == id)
     {
         // Remove the item
-        let removed_item = display_guard.playlist.items.remove(index);
-        let removed_image_id = extract_image_id(&removed_item).map(|s| s.to_string());
+        display_guard.playlist.items.remove(index);
 
         // Adjust active_index if necessary
         if !display_guard.playlist.items.is_empty() {
@@ -183,16 +172,10 @@ pub async fn delete_playlist_item(
         }
 
         // Save updated playlist
-        if !storage_guard.save_playlist(&display_guard.playlist) {
+        if storage_guard.save_playlist(&display_guard.playlist) {
+            storage_guard.cleanup_unused_images(&display_guard.playlist);
+        } else {
             error!("Failed to save playlist after deleting item");
-        }
-
-        if let Some(image_id) = removed_image_id {
-            if !image_is_referenced(&display_guard.playlist.items, &image_id) {
-                if !storage_guard.delete_image(&image_id) {
-                    error!("Failed to delete unused image {}", image_id);
-                }
-            }
         }
         drop(storage_guard);
 
@@ -268,7 +251,9 @@ pub async fn reorder_playlist_items(
 
     // Save updated playlist
     let storage_guard = storage.lock().unwrap();
-    if !storage_guard.save_playlist(&display_guard.playlist) {
+    if storage_guard.save_playlist(&display_guard.playlist) {
+        storage_guard.cleanup_unused_images(&display_guard.playlist);
+    } else {
         error!("Failed to save playlist after reordering items");
     }
     drop(storage_guard);
@@ -286,14 +271,4 @@ fn extract_image_id(item: &PlayListItem) -> Option<&str> {
         ContentDetails::Image(image_content) => Some(image_content.image_id.as_str()),
         _ => None,
     }
-}
-
-fn image_is_referenced(items: &[PlayListItem], image_id: &str) -> bool {
-    items.iter().any(|item| {
-        if let ContentDetails::Image(image_content) = &item.content.data {
-            image_content.image_id == image_id
-        } else {
-            false
-        }
-    })
 }
