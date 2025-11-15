@@ -2,6 +2,7 @@ use crate::display::driver::LedCanvas;
 use crate::display::renderer::{RenderContext, Renderer};
 use crate::models::border_effects::BorderEffect;
 use crate::models::playlist::PlayListItem;
+use std::f32::consts::TAU;
 use std::time::Instant;
 
 pub struct BorderRenderer {
@@ -175,45 +176,48 @@ impl BorderRenderer {
 
     // Render a sparkling border effect
     fn render_sparkle_border(&self, canvas: &mut Box<dyn LedCanvas>, colors: &[[u8; 3]]) {
-        let height = self.ctx.display_height;
-        let width = self.ctx.display_width;
-
-        // If no colors provided, don't render anything
         if colors.is_empty() {
             return;
         }
 
-        // Create a new random generator each time - in a real implementation,
-        // you might want to store this as a field for better performance
-        let mut rng = rand::thread_rng();
+        let width = self.ctx.display_width as usize;
+        let height = self.ctx.display_height as usize;
+        if width == 0 || height == 0 {
+            return;
+        }
 
-        // Create sparkles based on animation state - increase count for thicker border
-        for _ in 0..30 {
-            // Increased from 20 to provide more density for 2-pixel border
-            // Randomly select one of the available colors and apply brightness
-            let color_index = rand::Rng::gen_range(&mut rng, 0..colors.len());
-            let [r, g, b] = self.ctx.apply_brightness(colors[color_index]);
+        let border_thickness = 2usize.min(width.max(height));
+        let density = 0.55;
+        let twinkle_period = 0.8_f32; // seconds
+        let phase_base = self.animation_state / twinkle_period;
 
-            // Random position along the border
-            let pos = rand::Rng::gen_range(&mut rng, 0..2 * (width + height - 2));
-            let inner = rand::Rng::gen_bool(&mut rng, 0.5); // 50% chance for inner or outer pixel
+        for y in 0..height {
+            for x in 0..width {
+                let on_border = x < border_thickness
+                    || x >= width.saturating_sub(border_thickness)
+                    || y < border_thickness
+                    || y >= height.saturating_sub(border_thickness);
 
-            if pos < width {
-                // Top border
-                let row = if inner { 1 } else { 0 };
-                canvas.set_pixel(pos as usize, row, r, g, b);
-            } else if pos < width * 2 {
-                // Bottom border
-                let row = if inner { height - 2 } else { height - 1 } as usize;
-                canvas.set_pixel((pos - width) as usize, row, r, g, b);
-            } else if pos < width * 2 + height - 2 {
-                // Left border (excluding corners)
-                let col = if inner { 1 } else { 0 };
-                canvas.set_pixel(col, (pos - width * 2 + 1) as usize, r, g, b);
-            } else {
-                // Right border (excluding corners)
-                let col = if inner { width - 2 } else { width - 1 } as usize;
-                canvas.set_pixel(col, (pos - (width * 2 + height - 2) + 1) as usize, r, g, b);
+                if !on_border {
+                    continue;
+                }
+
+                let seed = Self::tile_seed(y as u32, x as u32);
+                if Self::pseudo_random_f32(seed) > density {
+                    continue;
+                }
+
+                let palette_index = (seed as usize) % colors.len();
+                let speed_variation =
+                    0.6 + 1.2 * Self::pseudo_random_f32(seed.wrapping_mul(31_415_927));
+                let phase_offset = Self::pseudo_random_f32(seed.wrapping_mul(97_531));
+                let twinkle_phase = (phase_base * speed_variation + phase_offset).fract();
+                let brightness = Self::sparkle_brightness(twinkle_phase);
+
+                let mut color = colors[palette_index];
+                color = Self::scale_color(color, brightness);
+                let [r, g, b] = self.ctx.apply_brightness(color);
+                canvas.set_pixel(x, y, r, g, b);
             }
         }
     }
@@ -347,5 +351,31 @@ impl BorderRenderer {
         let b = ((b + m) * 255.0) as u8;
 
         (r, g, b)
+    }
+
+    fn pseudo_random_f32(seed: u32) -> f32 {
+        let mut x = seed;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        (x as f32 / u32::MAX as f32).fract()
+    }
+
+    fn tile_seed(row: u32, col: u32) -> u32 {
+        row.wrapping_mul(738_560_93) ^ col.wrapping_mul(193_496_63)
+    }
+
+    fn sparkle_brightness(phase: f32) -> f32 {
+        let wave = (TAU * phase).sin() * 0.5 + 0.5;
+        0.1 + 0.9 * wave.powf(2.2)
+    }
+
+    fn scale_color(color: [u8; 3], brightness: f32) -> [u8; 3] {
+        let b = brightness.clamp(0.0, 1.0);
+        [
+            (color[0] as f32 * b).round().clamp(0.0, 255.0) as u8,
+            (color[1] as f32 * b).round().clamp(0.0, 255.0) as u8,
+            (color[2] as f32 * b).round().clamp(0.0, 255.0) as u8,
+        ]
     }
 }
