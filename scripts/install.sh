@@ -56,6 +56,34 @@ read_input() {
     eval "$var_name=\"\$result\""
 }
 
+# Helper functions to safely stash and restore local changes before pulling updates
+stash_repo_changes() {
+    local repo_dir="$1"
+    local user="$2"
+    local label="$3"
+    local result_var="$4"
+    local stashed=0
+    local changes
+
+    pushd "$repo_dir" > /dev/null
+
+    changes=$(sudo -u $user git status --porcelain)
+    if [ -n "$changes" ]; then
+        echo -e "${YELLOW}${label} repository has local changes. Stashing before update...${NC}"
+        if sudo -u $user git stash push -u -m "install-script-autostash-$(date +%s)"; then
+            stashed=1
+            echo -e "${GREEN}Local changes stashed for ${label} repository.${NC}"
+        else
+            echo -e "${RED}Failed to stash local changes for ${label} repository.${NC}"
+            popd > /dev/null
+            exit 1
+        fi
+    fi
+
+    popd > /dev/null
+    eval "$result_var=$stashed"
+}
+
 # Then update the Raspberry Pi detection override
 if ! grep -q "Raspberry Pi" /proc/cpuinfo && ! grep -q "BCM" /proc/cpuinfo; then
     echo -e "\n${RED}Error: This script must be run on a Raspberry Pi.${NC}"
@@ -266,8 +294,21 @@ if [ $APP_INSTALLED -eq 1 ]; then
         UPDATES_AVAILABLE=1
         echo -e "${YELLOW}Updates are available.${NC}"
         
+        # Stash local changes before pulling updates
+        stash_repo_changes "$REPO_DIR" $ACTUAL_USER "Backend" "BACKEND_STASHED_PRIMARY"
+        
         # Pull changes as the regular user
-        sudo -u $ACTUAL_USER git pull
+        if ! sudo -u $ACTUAL_USER git pull; then
+            echo -e "${RED}Failed to update backend repository.${NC}"
+            if [ "${BACKEND_STASHED_PRIMARY:-0}" -eq 1 ]; then
+                echo -e "${YELLOW}Your previous local changes were stashed. Use 'git stash list' followed by 'git stash pop' to restore them manually.${NC}"
+            fi
+            exit 1
+        fi
+
+        if [ "${BACKEND_STASHED_PRIMARY:-0}" -eq 1 ]; then
+            echo -e "${YELLOW}Local backend changes remain stashed. Run 'git stash list' and 'git stash pop' to restore them when ready.${NC}"
+        fi
         echo -e "${GREEN}Repository updated successfully.${NC}"
     else
         echo -e "${GREEN}Repository is already up to date.${NC}"
@@ -362,8 +403,21 @@ if [ $APP_INSTALLED -eq 1 ]; then
         BACKEND_UPDATES_AVAILABLE=1
         echo -e "${YELLOW}Backend updates are available.${NC}"
         
+        # Stash local changes before pulling updates
+        stash_repo_changes "$REPO_DIR" $ACTUAL_USER "Backend" "BACKEND_STASHED_SECONDARY"
+
         # Pull changes as the regular user
-        sudo -u $ACTUAL_USER git pull
+        if ! sudo -u $ACTUAL_USER git pull; then
+            echo -e "${RED}Failed to update backend repository.${NC}"
+            if [ "${BACKEND_STASHED_SECONDARY:-0}" -eq 1 ]; then
+                echo -e "${YELLOW}Your previous local changes were stashed. Use 'git stash list' followed by 'git stash pop' to restore them manually.${NC}"
+            fi
+            exit 1
+        fi
+
+        if [ "${BACKEND_STASHED_SECONDARY:-0}" -eq 1 ]; then
+            echo -e "${YELLOW}Local backend changes remain stashed. Run 'git stash list' and 'git stash pop' to restore them when ready.${NC}"
+        fi
         echo -e "${GREEN}Backend repository updated successfully.${NC}"
     else
         echo -e "${GREEN}Backend repository is already up to date.${NC}"
@@ -389,8 +443,21 @@ if [ $FRONTEND_REPO_EXISTS -eq 1 ]; then
         FRONTEND_UPDATES_AVAILABLE=1
         echo -e "${YELLOW}Frontend updates are available.${NC}"
         
+        # Stash local changes before pulling updates
+        stash_repo_changes "$FRONTEND_REPO_DIR" $ACTUAL_USER "Frontend" "FRONTEND_STASHED"
+
         # Pull changes as the regular user
-        sudo -u $ACTUAL_USER git pull
+        if ! sudo -u $ACTUAL_USER git pull; then
+            echo -e "${RED}Failed to update frontend repository.${NC}"
+            if [ "${FRONTEND_STASHED:-0}" -eq 1 ]; then
+                echo -e "${YELLOW}Your previous local changes were stashed. Use 'git stash list' followed by 'git stash pop' to restore them manually.${NC}"
+            fi
+            exit 1
+        fi
+
+        if [ "${FRONTEND_STASHED:-0}" -eq 1 ]; then
+            echo -e "${YELLOW}Local frontend changes remain stashed. Run 'git stash list' and 'git stash pop' to restore them when ready.${NC}"
+        fi
         echo -e "${GREEN}Frontend repository updated successfully.${NC}"
         FRONTEND_REBUILD_NEEDED=1
     else
