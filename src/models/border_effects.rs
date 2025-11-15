@@ -1,4 +1,7 @@
-use serde::{Deserialize, Serialize, ser::{Serializer, SerializeMap}};
+use serde::{
+    ser::{SerializeMap, Serializer},
+    Deserialize, Serialize,
+};
 
 // Border effects enum
 #[derive(Clone, Deserialize, Debug, PartialEq)]
@@ -28,28 +31,28 @@ impl Serialize for BorderEffect {
                 let mut map = serializer.serialize_map(Some(1))?;
                 map.serialize_entry("None", &Option::<()>::None)?;
                 map.end()
-            },
+            }
             BorderEffect::Rainbow => {
                 let mut map = serializer.serialize_map(Some(1))?;
                 map.serialize_entry("Rainbow", &Option::<()>::None)?;
                 map.end()
-            },
+            }
             // Complex variants continue using the default serialization
             BorderEffect::Pulse { colors } => {
                 let mut map = serializer.serialize_map(Some(1))?;
                 map.serialize_entry("Pulse", &serde_json::json!({"colors": colors}))?;
                 map.end()
-            },
+            }
             BorderEffect::Sparkle { colors } => {
                 let mut map = serializer.serialize_map(Some(1))?;
                 map.serialize_entry("Sparkle", &serde_json::json!({"colors": colors}))?;
                 map.end()
-            },
+            }
             BorderEffect::Gradient { colors } => {
                 let mut map = serializer.serialize_map(Some(1))?;
                 map.serialize_entry("Gradient", &serde_json::json!({"colors": colors}))?;
                 map.end()
-            },
+            }
         }
     }
-} 
+}

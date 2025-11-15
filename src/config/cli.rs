@@ -8,17 +8,17 @@
 pub struct CliArgs {
     #[argh(option, short = 'd')]
     /// driver type: "native" or "binding"
-    /// 
+    ///
     /// native: Pure Rust library (https://github.com/EmbersArc/rpi_led_panel)
     /// binding: C++ binding (https://github.com/hzeller/rpi-rgb-led-matrix)
-    /// 
+    ///
     /// (REQUIRED)
     pub driver: Option<String>,
 
     #[argh(option, short = 'r', default = "32")]
     /// number of rows. Default: 32 [native, binding]
     pub rows: usize,
-    
+
     #[argh(option, short = 'c', default = "64")]
     /// number of columns. Default: 64 [native, binding]
     pub cols: usize,
@@ -36,53 +36,53 @@ pub struct CliArgs {
     /// the display wiring e.g. "regular", "adafruit-hat", or "adafruit-hat-pwm".
     /// Default: "regular" [native, binding]
     pub hardware_mapping: Option<String>,
-    
+
     #[argh(option)]
     /// the Raspberry Pi chip model e.g. "BCM2711".
     /// Default: automatic [native]
     pub pi_chip: Option<String>,
-    
+
     #[argh(option, default = "11")]
     /// PWM bits for color depth control (1-11). Default: 11 [native, binding]
     pub pwm_bits: u8,
-    
+
     #[argh(option, default = "130")]
     /// base time-unit for the on-time in the lowest significant bit in nanoseconds.
     /// Default: 130 [native, binding]
     pub pwm_lsb_nanoseconds: u32,
-    
+
     #[argh(option)]
     /// GPIO slowdown factor (0-4). Default: automatic based on Pi model [native, binding]
     pub gpio_slowdown: Option<u32>,
-    
+
     #[argh(switch)]
     /// enable interlaced scan mode. Default: false [native, binding]
     pub interlaced: bool,
-    
+
     #[argh(option, default = "0")]
     /// number of bits to use for time dithering. Default: 0 (no dithering) [native, binding]
     pub dither_bits: usize,
-    
+
     #[argh(option)]
     /// panel type, e.g. "FM6126A" for panels requiring special initialization [native, binding]
     pub panel_type: Option<String>,
-    
+
     #[argh(option)]
     /// multiplexing type (e.g., "Stripe", "Checkered", "Spiral", etc.) [native, binding]
     pub multiplexing: Option<String>,
-    
+
     #[argh(option)]
     /// semicolon-separated list of pixel-mappers to arrange pixels
     /// (e.g. "U-mapper;Rotate:90") [native, binding]
     pub pixel_mapper: Option<String>,
-    
+
     #[argh(option, default = "String::from(\"direct\")")]
     /// row address setter type. Default: "direct" [native, binding]
-    /// Valid options: "direct"/"default", "shiftregister"/"ab-addressed", 
+    /// Valid options: "direct"/"default", "shiftregister"/"ab-addressed",
     /// "directabcdline"/"direct-row-select", "abcshiftregister"/"abc-addressed",
     /// "sm5266"/"abc-shift-de"
     pub row_setter: String,
-    
+
     #[argh(option, default = "String::from(\"RGB\")")]
     /// the LED color sequence, Default: "RGB" [native, binding]
     pub led_sequence: String,
@@ -107,7 +107,7 @@ pub struct CliArgs {
     #[argh(option, default = "3000")]
     /// web server port. Default: 3000
     pub port: u16,
-    
+
     #[argh(option, default = "String::from(\"0.0.0.0\")")]
     /// network interface to bind to. Default: "0.0.0.0" (all interfaces)
     pub interface: String,
@@ -124,4 +124,4 @@ impl CliArgs {
         // Use argh to parse args from environment
         argh::from_env()
     }
-} 
+}

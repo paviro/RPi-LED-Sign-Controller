@@ -1,16 +1,16 @@
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use crate::models::playlist::PlayListItem;
+use crate::models::settings::BrightnessSettings;
+use crate::web::api::CombinedState;
 use axum::{
     extract::State,
     response::{sse::Event, Sse},
 };
 use futures::stream::{self, Stream};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tokio::sync::broadcast::{self, Sender};
 use tokio_stream::StreamExt as _;
-use crate::web::api::CombinedState;
-use crate::models::settings::BrightnessSettings;
-use crate::models::playlist::PlayListItem;
-use serde::{Serialize, Deserialize};
 
 // Define event types for editor lock
 #[derive(Clone, Serialize, Deserialize)]
@@ -47,26 +47,26 @@ impl EventState {
         let (brightness_tx, _) = broadcast::channel(100);
         let (editor_lock_tx, _) = broadcast::channel(100);
         let (playlist_tx, _) = broadcast::channel(100);
-        
+
         Arc::new(Mutex::new(Self {
             brightness_tx,
             editor_lock_tx,
             playlist_tx,
         }))
     }
-    
+
     pub fn get_brightness_sender(&self) -> Sender<BrightnessSettings> {
         self.brightness_tx.clone()
     }
-    
+
     pub fn broadcast_brightness(&self, brightness: BrightnessSettings) {
         let _ = self.brightness_tx.send(brightness);
     }
-    
+
     pub fn get_editor_lock_sender(&self) -> Sender<EditorLockEvent> {
         self.editor_lock_tx.clone()
     }
-    
+
     pub fn broadcast_editor_lock(&self, is_locked: bool, locked_by: Option<String>) {
         let event = EditorLockEvent {
             locked: is_locked,
@@ -74,16 +74,13 @@ impl EventState {
         };
         let _ = self.editor_lock_tx.send(event);
     }
-    
+
     pub fn get_playlist_sender(&self) -> Sender<PlaylistUpdateEvent> {
         self.playlist_tx.clone()
     }
-    
+
     pub fn broadcast_playlist_update(&self, items: Vec<PlayListItem>, action: PlaylistAction) {
-        let event = PlaylistUpdateEvent {
-            items,
-            action,
-        };
+        let event = PlaylistUpdateEvent { items, action };
         let _ = self.playlist_tx.send(event);
     }
 }
@@ -99,7 +96,7 @@ pub async fn brightness_events(
         let event_state = event_state.lock().unwrap();
         event_state.get_brightness_sender().subscribe()
     };
-    
+
     let stream = stream::unfold(brightness_rx, |mut rx| async move {
         match rx.recv().await {
             Ok(brightness) => {
@@ -114,20 +111,17 @@ pub async fn brightness_events(
             }
         }
     });
-    
+
     // Add keepalive logic
-    let keepalive = stream::repeat_with(|| {
-        Event::default().event("ping").data("")
-    })
-    .map(Ok)
-    .throttle(Duration::from_secs(30));
-    
-    Sse::new(stream.merge(keepalive))
-        .keep_alive(
-            axum::response::sse::KeepAlive::new()
-                .interval(Duration::from_secs(15))
-                .text("keep-alive-text")
-        )
+    let keepalive = stream::repeat_with(|| Event::default().event("ping").data(""))
+        .map(Ok)
+        .throttle(Duration::from_secs(30));
+
+    Sse::new(stream.merge(keepalive)).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text("keep-alive-text"),
+    )
 }
 
 // Handler for editor lock SSE events
@@ -139,7 +133,7 @@ pub async fn editor_lock_events(
         let event_state = event_state.lock().unwrap();
         event_state.get_editor_lock_sender().subscribe()
     };
-    
+
     let stream = stream::unfold(lock_rx, |mut rx| async move {
         match rx.recv().await {
             Ok(lock_event) => {
@@ -154,20 +148,17 @@ pub async fn editor_lock_events(
             }
         }
     });
-    
+
     // Add keepalive logic
-    let keepalive = stream::repeat_with(|| {
-        Event::default().event("ping").data("")
-    })
-    .map(Ok)
-    .throttle(Duration::from_secs(30));
-    
-    Sse::new(stream.merge(keepalive))
-        .keep_alive(
-            axum::response::sse::KeepAlive::new()
-                .interval(Duration::from_secs(15))
-                .text("keep-alive-text")
-        )
+    let keepalive = stream::repeat_with(|| Event::default().event("ping").data(""))
+        .map(Ok)
+        .throttle(Duration::from_secs(30));
+
+    Sse::new(stream.merge(keepalive)).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text("keep-alive-text"),
+    )
 }
 
 // Handler for playlist update SSE events
@@ -179,7 +170,7 @@ pub async fn playlist_events(
         let event_state = event_state.lock().unwrap();
         event_state.get_playlist_sender().subscribe()
     };
-    
+
     let stream = stream::unfold(playlist_rx, |mut rx| async move {
         match rx.recv().await {
             Ok(playlist_event) => {
@@ -194,18 +185,15 @@ pub async fn playlist_events(
             }
         }
     });
-    
+
     // Add keepalive logic
-    let keepalive = stream::repeat_with(|| {
-        Event::default().event("ping").data("")
-    })
-    .map(Ok)
-    .throttle(Duration::from_secs(30));
-    
-    Sse::new(stream.merge(keepalive))
-        .keep_alive(
-            axum::response::sse::KeepAlive::new()
-                .interval(Duration::from_secs(15))
-                .text("keep-alive-text")
-        )
+    let keepalive = stream::repeat_with(|| Event::default().event("ping").data(""))
+        .map(Ok)
+        .throttle(Duration::from_secs(30));
+
+    Sse::new(stream.merge(keepalive)).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text("keep-alive-text"),
+    )
 }

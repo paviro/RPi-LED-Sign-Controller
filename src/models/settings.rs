@@ -10,4 +10,3 @@ pub struct BrightnessSettings {
 pub struct ReorderRequest {
     pub item_ids: Vec<String>,
 }
-

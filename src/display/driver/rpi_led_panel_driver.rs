@@ -1,12 +1,14 @@
-use std::fmt::Debug;
-use std::any::Any;
 use log::{debug, warn};
-use rpi_led_panel::{RGBMatrix, Canvas, HardwareMapping, LedSequence, 
-                    PiChip, PanelType, MultiplexMapperType, RowAddressSetterType, RGBMatrixConfig};
+use rpi_led_panel::{
+    Canvas, HardwareMapping, LedSequence, MultiplexMapperType, PanelType, PiChip, RGBMatrix,
+    RGBMatrixConfig, RowAddressSetterType,
+};
+use std::any::Any;
+use std::fmt::Debug;
 
-use crate::config::DisplayConfig;
-use super::{LedCanvas, LedDriver};
 use super::options::MatrixOptions;
+use super::{LedCanvas, LedDriver};
+use crate::config::DisplayConfig;
 
 // Canvas implementation for rpi-led-panel
 pub struct RpiLedPanelCanvas {
@@ -44,8 +46,11 @@ impl LedCanvas for RpiLedPanelCanvas {
     fn size(&self) -> (i32, i32) {
         (self.width, self.height)
     }
-    
-    fn as_any_mut(&mut self) -> &mut dyn Any where Self: 'static {
+
+    fn as_any_mut(&mut self) -> &mut dyn Any
+    where
+        Self: 'static,
+    {
         self
     }
 }
@@ -73,27 +78,30 @@ impl Debug for RpiLedPanelDriver {
 unsafe impl Send for RpiLedPanelDriver {}
 
 impl LedDriver for RpiLedPanelDriver {
-    fn initialize(config: &DisplayConfig) -> Result<Self, String> where Self: Sized {
+    fn initialize(config: &DisplayConfig) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
         // Get common options
         let options = MatrixOptions::from_config(config);
-        
+
         // Convert to rpi-led-panel specific config
         let matrix_config = Self::create_matrix_config(&options)?;
-        
+
         debug!("Initializing native driver with options: {:?}", options);
-        
+
         match RGBMatrix::new(matrix_config, 0) {
             Ok((matrix, canvas)) => {
                 let width = (options.cols * options.chain_length) as i32;
                 let height = (options.rows * options.parallel) as i32;
-                
+
                 Ok(Self {
                     matrix,
                     canvas: Some(canvas),
                     width,
                     height,
                 })
-            },
+            }
             Err(e) => Err(format!("Failed to initialize rpi-led-panel: {}", e)),
         }
     }
@@ -116,18 +124,20 @@ impl LedDriver for RpiLedPanelDriver {
             .as_any_mut()
             .downcast_mut::<RpiLedPanelCanvas>()
             .expect("Canvas was not an RpiLedPanelCanvas");
-        
+
         // Extract dimensions for reuse
         let width = panel_canvas.width;
         let height = panel_canvas.height;
-        
+
         // Extract the canvas directly
-        let inner_canvas = panel_canvas.canvas.take()
+        let inner_canvas = panel_canvas
+            .canvas
+            .take()
             .expect("Canvas was None when it shouldn't be");
-        
+
         // Update the display and get the new canvas
         let new_canvas = self.matrix.update_on_vsync(inner_canvas);
-        
+
         // Wrap in our canvas type
         Box::new(RpiLedPanelCanvas {
             canvas: Some(new_canvas),
@@ -150,30 +160,30 @@ impl RpiLedPanelDriver {
     fn create_matrix_config(options: &MatrixOptions) -> Result<RGBMatrixConfig, String> {
         let mut config = RGBMatrixConfig::default();
         let mut unsupported_options = Vec::new();
-        
+
         // Set basic options
         config.rows = options.rows;
         config.cols = options.cols;
         config.chain_length = options.chain_length;
         config.parallel = options.parallel;
         config.led_brightness = options.brightness;
-        
+
         // With this (conditionally set refresh rate)
         if options.limit_refresh_rate > 0 {
             config.refresh_rate = options.limit_refresh_rate as usize;
         } else {
             config.refresh_rate = 0;
         }
-        
+
         // Set additional options
         config.pwm_bits = options.pwm_bits as usize;
         config.pwm_lsb_nanoseconds = options.pwm_lsb_nanoseconds;
         config.interlaced = options.interlaced;
         config.dither_bits = options.dither_bits;
-        
+
         // Convert hardware mapping
         config.hardware_mapping = Self::map_hardware_mapping(&options.hardware_mapping)?;
-        
+
         // Convert LED sequence
         config.led_sequence = match options.led_sequence.to_uppercase().as_str() {
             "RGB" => LedSequence::Rgb,
@@ -183,12 +193,15 @@ impl RpiLedPanelDriver {
             "BRG" => LedSequence::Brg,
             "BGR" => LedSequence::Bgr,
             seq => {
-                warn!("Unsupported LED sequence '{}' for native driver, defaulting to 'RGB'", seq);
+                warn!(
+                    "Unsupported LED sequence '{}' for native driver, defaulting to 'RGB'",
+                    seq
+                );
                 unsupported_options.push(format!("led_sequence={}", seq));
                 LedSequence::Rgb
             }
         };
-        
+
         // Apply Pi chip if specified
         if let Some(chip) = &options.pi_chip {
             config.pi_chip = match chip.to_uppercase().as_str() {
@@ -196,26 +209,32 @@ impl RpiLedPanelDriver {
                 "BCM2709" => Some(PiChip::BCM2709), // Pi 2
                 "BCM2711" => Some(PiChip::BCM2711), // Pi 4
                 chip_type => {
-                    warn!("Unsupported Pi chip '{}' for native driver, using automatic detection", chip_type);
+                    warn!(
+                        "Unsupported Pi chip '{}' for native driver, using automatic detection",
+                        chip_type
+                    );
                     unsupported_options.push(format!("pi_chip={}", chip_type));
                     None
                 }
             };
         }
-        
+
         // Apply panel type if specified
         if let Some(panel) = &options.panel_type {
             config.panel_type = match panel.to_uppercase().as_str() {
                 "FM6126" | "FM6126A" => Some(PanelType::FM6126),
                 "FM6127" => Some(PanelType::FM6127),
                 panel_type => {
-                    warn!("Unsupported panel type '{}' for native driver, using default", panel_type);
+                    warn!(
+                        "Unsupported panel type '{}' for native driver, using default",
+                        panel_type
+                    );
                     unsupported_options.push(format!("panel_type={}", panel_type));
                     None
                 }
             };
         }
-        
+
         // Apply multiplexing if specified
         if let Some(multiplex_str) = &options.multiplexing {
             let multiplex_type = Self::map_multiplexing(multiplex_str);
@@ -224,21 +243,24 @@ impl RpiLedPanelDriver {
             }
             config.multiplexing = multiplex_type;
         }
-        
+
         // Convert row address setter
         config.row_setter = Self::map_row_setter(&options.row_setter)?;
-        
+
         // Apply pixel mapper if specified - just warn and add to unsupported options
         if let Some(mappers) = &options.pixel_mapper {
-            warn!("Pixel mapper '{}' not directly supported in the native driver", mappers);
+            warn!(
+                "Pixel mapper '{}' not directly supported in the native driver",
+                mappers
+            );
             unsupported_options.push(format!("pixel_mapper={}", mappers));
         }
-        
+
         // Set GPIO slowdown if specified
         if let Some(slowdown) = options.gpio_slowdown {
             config.slowdown = Some(slowdown);
         }
-        
+
         // Check for unsupported options
         if !options.hardware_pulsing {
             unsupported_options.push("no-hardware-pulse".to_string());
@@ -251,22 +273,22 @@ impl RpiLedPanelDriver {
         if options.inverse_colors {
             unsupported_options.push("inverse-colors".to_string());
         }
-        
+
         // Check if we encountered any unsupported options
         if !unsupported_options.is_empty() {
             return Err(format!(
-                "The following options are not supported by the native driver: {}", 
+                "The following options are not supported by the native driver: {}",
                 unsupported_options.join(", ")
             ));
         }
-        
+
         Ok(config)
     }
-    
+
     // Helper to map multiplexing strings to enum values
     fn map_multiplexing(multiplex_str: &str) -> Option<MultiplexMapperType> {
         let multiplex_str = multiplex_str.to_lowercase();
-        
+
         match multiplex_str.as_str() {
             "stripe" => Some(MultiplexMapperType::Stripe),
             "checkered" | "checker" => Some(MultiplexMapperType::Checkered),
@@ -286,10 +308,10 @@ impl RpiLedPanelDriver {
             "p8outdoor1r1g1b" => Some(MultiplexMapperType::P8Outdoor1R1G1B),
             "flippedstripe" => Some(MultiplexMapperType::FlippedStripe),
             "p10outdoor32x16halfscan" => Some(MultiplexMapperType::P10Outdoor32x16HalfScan),
-            _ => None
+            _ => None,
         }
     }
-    
+
     // Helper to map row setter strings to enum values
     fn map_row_setter(row_setter_str: &str) -> Result<RowAddressSetterType, String> {
         match row_setter_str.to_lowercase().as_str() {
@@ -298,7 +320,10 @@ impl RpiLedPanelDriver {
             "directabcdline" | "direct-row-select" => Ok(RowAddressSetterType::DirectABCDLine),
             "abcshiftregister" | "abc-addressed" => Ok(RowAddressSetterType::ABCShiftRegister),
             "sm5266" | "abc-shift-de" => Ok(RowAddressSetterType::SM5266),
-            _ => Err(format!("Unknown row address setter type: {}", row_setter_str))
+            _ => Err(format!(
+                "Unknown row address setter type: {}",
+                row_setter_str
+            )),
         }
     }
 
@@ -311,7 +336,7 @@ impl RpiLedPanelDriver {
             "regular-pi1" | "regularpi1" => Ok(HardwareMapping::regular_pi1()),
             "classic" => Ok(HardwareMapping::classic()),
             "classic-pi1" | "classicpi1" => Ok(HardwareMapping::classic_pi1()),
-            _ => Err(format!("Unknown hardware mapping: {}", mapping))
+            _ => Err(format!("Unknown hardware mapping: {}", mapping)),
         }
     }
-} 
+}
