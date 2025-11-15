@@ -246,7 +246,7 @@ impl BorderRenderer {
             let adjusted_pos = (pos + offset) % perimeter;
 
             // Determine which segment this position falls in
-            let segment_idx = adjusted_pos / segment_length;
+            let segment_idx = (adjusted_pos / segment_length).min(segments - 1);
             let next_segment_idx = (segment_idx + 1) % segments;
 
             // Calculate interpolation factor within segment
