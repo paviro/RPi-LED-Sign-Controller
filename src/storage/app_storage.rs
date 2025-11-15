@@ -1,7 +1,7 @@
-use std::sync::{Arc, Mutex};
 use crate::models::playlist::Playlist;
-use crate::storage::manager::{StorageManager, paths};
-use log::{info, error, debug};
+use crate::storage::manager::{paths, StorageManager};
+use log::{debug, error, info};
+use std::sync::{Arc, Mutex};
 
 // Unified storage for all application settings
 pub struct AppStorage {
@@ -27,7 +27,10 @@ impl AppStorage {
                 debug!("Loaded playlist file, attempting to parse");
                 match serde_json::from_str::<Playlist>(&contents) {
                     Ok(playlist) => {
-                        info!("Successfully loaded playlist with {} items", playlist.items.len());
+                        info!(
+                            "Successfully loaded playlist with {} items",
+                            playlist.items.len()
+                        );
                         if let Some(mut playlist) = Some(playlist) {
                             playlist.active_index = 0;
                             Some(playlist)
@@ -50,7 +53,7 @@ impl AppStorage {
 
     pub fn save_playlist(&self, playlist: &Playlist) -> bool {
         debug!("Saving playlist with {} items", playlist.items.len());
-        
+
         // Serialize the playlist to JSON
         match serde_json::to_string_pretty(playlist) {
             Ok(json) => {
@@ -73,23 +76,23 @@ impl AppStorage {
             }
         }
     }
-    
+
     // Display settings methods
     pub fn load_brightness(&self) -> Option<u8> {
         debug!("Loading brightness setting");
-        
+
         if !self.storage_manager.file_exists(paths::BRIGHTNESS_FILE) {
             debug!("No brightness file found");
             return None;
         }
-        
+
         match self.storage_manager.read_file(paths::BRIGHTNESS_FILE) {
             Ok(contents) => {
                 #[derive(serde::Deserialize)]
                 struct BrightnessSetting {
                     brightness: u8,
                 }
-                
+
                 match serde_json::from_str::<BrightnessSetting>(&contents) {
                     Ok(setting) => {
                         info!("Loaded brightness setting: {}%", setting.brightness);
@@ -107,20 +110,23 @@ impl AppStorage {
             }
         }
     }
-    
+
     pub fn save_brightness(&self, brightness: u8) {
         debug!("Saving brightness setting: {}%", brightness);
-        
+
         #[derive(serde::Serialize)]
         struct BrightnessSetting {
             brightness: u8,
         }
-        
+
         let setting = BrightnessSetting { brightness };
-        
+
         match serde_json::to_string_pretty(&setting) {
             Ok(json) => {
-                match self.storage_manager.write_file(paths::BRIGHTNESS_FILE, &json) {
+                match self
+                    .storage_manager
+                    .write_file(paths::BRIGHTNESS_FILE, &json)
+                {
                     Ok(_) => {
                         info!("Brightness saved: {}%", brightness);
                     }
@@ -134,6 +140,44 @@ impl AppStorage {
             }
         }
     }
+
+    // Image helpers
+    pub fn save_image(&self, image_id: &str, data: &[u8]) -> bool {
+        match self.storage_manager.save_image_file(image_id, data) {
+            Ok(path) => {
+                info!("Saved image {} to {:?}", image_id, path);
+                true
+            }
+            Err(err) => {
+                error!("Failed to save image {}: {}", image_id, err);
+                false
+            }
+        }
+    }
+
+    pub fn load_image(&self, image_id: &str) -> Option<Vec<u8>> {
+        match self.storage_manager.read_image_file(image_id) {
+            Ok(bytes) => Some(bytes),
+            Err(err) => {
+                error!("Failed to read image {}: {}", image_id, err);
+                None
+            }
+        }
+    }
+
+    pub fn delete_image(&self, image_id: &str) -> bool {
+        match self.storage_manager.delete_image_file(image_id) {
+            Ok(_) => true,
+            Err(err) => {
+                error!("Failed to delete image {}: {}", image_id, err);
+                false
+            }
+        }
+    }
+
+    pub fn image_path(&self, image_id: &str) -> std::path::PathBuf {
+        self.storage_manager.image_file_path(image_id)
+    }
 }
 
 // Create a global storage instance that can be shared across threads
@@ -142,10 +186,10 @@ pub type SharedStorage = Arc<Mutex<AppStorage>>;
 pub fn create_storage(custom_dir: Option<String>) -> SharedStorage {
     // Create the storage manager with the specified directory
     let storage_manager = StorageManager::new(custom_dir);
-    
+
     // Create the app storage using the manager
     let app_storage = AppStorage::new(storage_manager);
-    
+
     // Wrap in Arc<Mutex<>> for thread safety
     Arc::new(Mutex::new(app_storage))
-} 
+}

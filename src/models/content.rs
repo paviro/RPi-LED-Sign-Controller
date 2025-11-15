@@ -1,11 +1,13 @@
-use serde::{Deserialize, Serialize};
+use crate::models::image::ImageContent;
 use crate::models::text::TextContent;
+use serde::{Deserialize, Serialize};
 
 // Add a ContentType enum to models.rs
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub enum ContentType {
     Text,
-    // Future types will be added here (Image, Clock, Animation, etc.)
+    Image,
+    // Future types will be added here (Clock, Animation, etc.)
 }
 
 // Provide default implementation
@@ -28,5 +30,6 @@ pub struct ContentData {
 #[serde(tag = "type")]
 pub enum ContentDetails {
     Text(TextContent),
-    // Future types: Image, Clock, etc.
+    Image(ImageContent),
+    // Future types: Clock, etc.
 }

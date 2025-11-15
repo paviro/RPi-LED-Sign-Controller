@@ -3,10 +3,10 @@
 pub struct RenderContext {
     /// Display width in pixels
     pub display_width: i32,
-    
+
     /// Display height in pixels
     pub display_height: i32,
-    
+
     /// User-defined brightness (0-100)
     pub brightness: u8,
 }
@@ -20,7 +20,7 @@ impl RenderContext {
             brightness,
         }
     }
-    
+
     /// Apply brightness scaling to a color
     pub fn apply_brightness(&self, color: [u8; 3]) -> [u8; 3] {
         let brightness_scale = self.brightness as f32 / 100.0;
@@ -30,10 +30,10 @@ impl RenderContext {
             (color[2] as f32 * brightness_scale) as u8,
         ]
     }
-    
+
     /// Calculate vertical position for centered text
     pub fn calculate_centered_text_position(&self, font_height: i32) -> i32 {
         let baseline_adjustment = 5;
         (self.display_height / 2) + (font_height / 2) - baseline_adjustment
     }
-} 
+}

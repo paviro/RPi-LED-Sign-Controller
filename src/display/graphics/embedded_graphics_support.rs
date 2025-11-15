@@ -34,7 +34,7 @@ impl<'a> DrawTarget for EmbeddedGraphicsCanvas<'a> {
             if point.x >= 0 && point.y >= 0 {
                 let x = point.x as usize;
                 let y = point.y as usize;
-                
+
                 // Use the method call syntax directly on the color object
                 self.canvas.set_pixel(x, y, color.r(), color.g(), color.b());
             }
@@ -54,4 +54,4 @@ impl<'a> embedded_graphics::prelude::OriginDimensions for EmbeddedGraphicsCanvas
         let (width, height) = self.canvas.size();
         Size::new(width as u32, height as u32)
     }
-} 
+}

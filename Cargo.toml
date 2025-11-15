@@ -11,7 +11,7 @@ rpi-led-panel = "0.8.1"
 rpi-led-matrix = "0.4"
 embedded-graphics = "0.8"
 embedded-graphics-core = "0.4"
-axum = "0.7.2"
+axum = { version = "0.7.2", features = ["multipart"] }
 axum-embed = "0.1"
 rust-embed = "8.0.0"
 tokio = { version = "1.48.0", features = ["full"] }
@@ -34,3 +34,5 @@ uuid = { version = "1.4", features = ["v4", "serde"] }
 tower-http = { version = "0.6.2", features = ["fs"] }
 tokio-stream = "0.1.17"
 futures = "0.3.31"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "gif", "ico", "tiff", "webp"] }
+bytes = "1.6"

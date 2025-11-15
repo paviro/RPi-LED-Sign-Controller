@@ -9,7 +9,7 @@ pub struct MatrixOptions {
     pub chain_length: usize,
     pub parallel: usize,
     pub brightness: u8,
-    
+
     // Additional options
     pub hardware_mapping: String,
     pub pwm_bits: u8,
@@ -22,7 +22,7 @@ pub struct MatrixOptions {
     pub pixel_mapper: Option<String>,
     pub row_setter: String,
     pub led_sequence: String,
-    
+
     // New C++ binding specific options
     pub hardware_pulsing: bool,
     pub show_refresh: bool,
@@ -85,13 +85,13 @@ impl MatrixOptions {
             limit_refresh_rate: config.limit_refresh_rate,
             pi_chip: config.pi_chip.clone(),
         };
-        
+
         // Apply any environment variable overrides
         Self::apply_env_overrides(&mut options);
-        
+
         options
     }
-    
+
     // Apply environment variable overrides
     fn apply_env_overrides(options: &mut Self) {
         // Matrix dimensions
@@ -100,67 +100,67 @@ impl MatrixOptions {
                 options.rows = rows;
             }
         }
-        
+
         if let Ok(value) = std::env::var("LED_COLS") {
             if let Ok(cols) = value.parse() {
                 options.cols = cols;
             }
         }
-        
+
         if let Ok(value) = std::env::var("LED_CHAIN_LENGTH") {
             if let Ok(chain) = value.parse() {
                 options.chain_length = chain;
             }
         }
-        
+
         if let Ok(value) = std::env::var("LED_PARALLEL") {
             if let Ok(parallel) = value.parse() {
                 options.parallel = parallel;
             }
         }
-        
+
         // Hardware configuration
         if let Ok(mapping) = std::env::var("LED_HARDWARE_MAPPING") {
             options.hardware_mapping = mapping;
         }
-        
+
         if let Ok(slowdown) = std::env::var("LED_GPIO_SLOWDOWN") {
             if let Ok(val) = slowdown.parse::<u32>() {
                 options.gpio_slowdown = Some(val);
             }
         }
-        
+
         // PWM settings
         if let Ok(bits) = std::env::var("LED_PWM_BITS") {
             if let Ok(val) = bits.parse::<u8>() {
                 options.pwm_bits = val;
             }
         }
-        
+
         if let Ok(ns) = std::env::var("LED_PWM_LSB_NANOSECONDS") {
             if let Ok(val) = ns.parse::<u32>() {
                 options.pwm_lsb_nanoseconds = val;
             }
         }
-        
+
         // Panel configuration
         if let Ok(mapper) = std::env::var("LED_PIXEL_MAPPER") {
             options.pixel_mapper = Some(mapper);
         }
-        
+
         if let Ok(multiplex) = std::env::var("LED_MULTIPLEXING") {
             options.multiplexing = Some(multiplex);
         }
-        
+
         if let Ok(value) = std::env::var("LED_PANEL_TYPE") {
             options.panel_type = Some(value);
         }
-        
+
         if let Ok(_value) = std::env::var("LED_PI_CHIP") {
-            // We don't use this directly in MatrixOptions, 
+            // We don't use this directly in MatrixOptions,
             // but it's passed to the driver implementations
         }
-        
+
         if let Ok(value) = std::env::var("LED_INTERLACED") {
             if let Ok(enabled) = value.parse::<bool>() {
                 options.interlaced = enabled;
@@ -169,21 +169,21 @@ impl MatrixOptions {
                 options.interlaced = enabled != 0;
             }
         }
-        
+
         if let Ok(value) = std::env::var("LED_DITHER_BITS") {
             if let Ok(bits) = value.parse() {
                 options.dither_bits = bits;
             }
         }
-        
+
         if let Ok(value) = std::env::var("LED_ROW_SETTER") {
             options.row_setter = value;
         }
-        
+
         if let Ok(value) = std::env::var("LED_SEQUENCE") {
             options.led_sequence = value;
         }
-        
+
         if let Ok(value) = std::env::var("LED_HARDWARE_PULSING") {
             if let Ok(enabled) = value.parse::<bool>() {
                 options.hardware_pulsing = enabled;
@@ -191,7 +191,7 @@ impl MatrixOptions {
                 options.hardware_pulsing = enabled != 0;
             }
         }
-        
+
         if let Ok(value) = std::env::var("LED_SHOW_REFRESH") {
             if let Ok(enabled) = value.parse::<bool>() {
                 options.show_refresh = enabled;
@@ -199,7 +199,7 @@ impl MatrixOptions {
                 options.show_refresh = enabled != 0;
             }
         }
-        
+
         if let Ok(value) = std::env::var("LED_INVERSE_COLORS") {
             if let Ok(enabled) = value.parse::<bool>() {
                 options.inverse_colors = enabled;
@@ -207,11 +207,11 @@ impl MatrixOptions {
                 options.inverse_colors = enabled != 0;
             }
         }
-        
+
         if let Ok(value) = std::env::var("LED_LIMIT_REFRESH_RATE") {
             if let Ok(limit) = value.parse() {
                 options.limit_refresh_rate = limit;
             }
         }
     }
-} 
+}

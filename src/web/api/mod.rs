@@ -1,12 +1,14 @@
-use std::sync::Arc;
 use crate::display::manager::DisplayManager;
 use crate::storage::app_storage::SharedStorage;
 use crate::web::api::events::SharedEventState;
+use std::sync::Arc;
 
-pub mod playlist;
-pub mod settings;
-pub mod preview;
+pub mod display;
 pub mod events;
+pub mod images;
+pub mod playlist;
+pub mod preview;
+pub mod settings;
 
 // Type alias for our application state
 pub type AppState = (Arc<tokio::sync::Mutex<DisplayManager>>, SharedStorage);
