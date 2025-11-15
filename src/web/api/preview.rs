@@ -1,14 +1,9 @@
 use crate::models::playlist::PlayListItem;
+use crate::models::preview::PreviewModeState;
 use crate::utils::uuid::generate_uuid_string;
 use crate::web::api::CombinedState;
 use axum::{extract::State, http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
-
-// New struct to represent PreviewModeState for API responses
-#[derive(Serialize, Deserialize)]
-pub struct PreviewModeState {
-    pub active: bool,
-}
 
 // New response type for preview mode operations
 #[derive(Serialize, Deserialize)]
