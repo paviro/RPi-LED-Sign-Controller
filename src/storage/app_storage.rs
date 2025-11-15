@@ -293,10 +293,7 @@ impl AppStorage {
                             removed_thumbnails += 1;
                         }
                         Err(err) => {
-                            error!(
-                                "Failed to remove thumbnail for image {}: {}",
-                                image_id, err
-                            );
+                            error!("Failed to remove thumbnail for image {}: {}", image_id, err);
                         }
                     }
                 }
