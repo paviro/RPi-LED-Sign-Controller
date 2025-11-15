@@ -23,6 +23,23 @@ impl DecodedImage {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct PreciseTransform {
+    x: f32,
+    y: f32,
+    scale: f32,
+}
+
+impl From<&ImageTransform> for PreciseTransform {
+    fn from(transform: &ImageTransform) -> Self {
+        Self {
+            x: transform.x as f32,
+            y: transform.y as f32,
+            scale: transform.scale,
+        }
+    }
+}
+
 pub struct ImageRenderer {
     ctx: RenderContext,
     content: ImageContent,
@@ -110,26 +127,36 @@ impl Renderer for ImageRenderer {
 
         let transform = self.current_transform();
         let scale = transform.scale.max(MIN_SCALE);
-        let scaled_width = (decoded.width as f32 * scale).round().max(1.0) as i32;
-        let scaled_height = (decoded.height as f32 * scale).round().max(1.0) as i32;
+        let scaled_width = decoded.width as f32 * scale;
+        let scaled_height = decoded.height as f32 * scale;
 
-        for dy in 0..scaled_height {
-            let panel_y = transform.y + dy;
+        let mut start_x = transform.x.floor() as i32;
+        let mut end_x = (transform.x + scaled_width).ceil() as i32;
+        if end_x <= start_x {
+            end_x = start_x + 1;
+        }
+
+        let mut start_y = transform.y.floor() as i32;
+        let mut end_y = (transform.y + scaled_height).ceil() as i32;
+        if end_y <= start_y {
+            end_y = start_y + 1;
+        }
+
+        for panel_y in start_y..end_y {
             if panel_y < 0 || panel_y >= self.ctx.display_height {
                 continue;
             }
 
-            let src_y = ((dy as f32) / scale)
+            let src_y = (((panel_y as f32) - transform.y) / scale)
                 .floor()
                 .clamp(0.0, decoded.height as f32 - 1.0) as u32;
 
-            for dx in 0..scaled_width {
-                let panel_x = transform.x + dx;
+            for panel_x in start_x..end_x {
                 if panel_x < 0 || panel_x >= self.ctx.display_width {
                     continue;
                 }
 
-                let src_x = ((dx as f32) / scale)
+                let src_x = (((panel_x as f32) - transform.x) / scale)
                     .floor()
                     .clamp(0.0, decoded.width as f32 - 1.0) as u32;
 
@@ -169,7 +196,7 @@ impl Renderer for ImageRenderer {
 }
 
 impl ImageRenderer {
-    fn current_transform(&self) -> ImageTransform {
+    fn current_transform(&self) -> PreciseTransform {
         if let Some(animation) = &self.content.animation {
             if animation.keyframes.len() >= 2 {
                 if let Some(transform) = interpolate_transform(animation, self.animation_elapsed_ms)
@@ -178,7 +205,7 @@ impl ImageRenderer {
                 }
             }
         }
-        self.content.transform.clone()
+        PreciseTransform::from(&self.content.transform)
     }
 }
 
@@ -189,7 +216,7 @@ fn repeat_count_to_iterations(repeat_count: Option<u32>) -> Option<u32> {
     }
 }
 
-fn interpolate_transform(animation: &ImageAnimation, elapsed_ms: f32) -> Option<ImageTransform> {
+fn interpolate_transform(animation: &ImageAnimation, elapsed_ms: f32) -> Option<PreciseTransform> {
     if animation.keyframes.len() < 2 {
         return None;
     }
@@ -202,19 +229,19 @@ fn interpolate_transform(animation: &ImageAnimation, elapsed_ms: f32) -> Option<
             let progress =
                 ((elapsed_ms - previous.timestamp_ms as f32) / segment_duration).clamp(0.0, 1.0);
 
-            return Some(ImageTransform {
-                x: lerp(previous.x as f32, next.x as f32, progress).round() as i32,
-                y: lerp(previous.y as f32, next.y as f32, progress).round() as i32,
+            return Some(PreciseTransform {
+                x: lerp(previous.x as f32, next.x as f32, progress),
+                y: lerp(previous.y as f32, next.y as f32, progress),
                 scale: lerp(previous.scale, next.scale, progress).max(MIN_SCALE),
             });
         }
         previous = next;
     }
 
-    animation.keyframes.last().map(|last| ImageTransform {
-        x: last.x,
-        y: last.y,
-        scale: last.scale,
+    animation.keyframes.last().map(|last| PreciseTransform {
+        x: last.x as f32,
+        y: last.y as f32,
+        scale: last.scale.max(MIN_SCALE),
     })
 }
 
