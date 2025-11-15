@@ -94,6 +94,10 @@ impl Renderer for ImageRenderer {
             return;
         }
 
+        if self.is_complete {
+            return;
+        }
+
         if let Some(duration) = self.duration_seconds {
             self.elapsed_seconds += dt;
             if self.elapsed_seconds >= duration as f32 {
@@ -106,14 +110,20 @@ impl Renderer for ImageRenderer {
                 self.animation_elapsed_ms += dt * 1000.0;
                 let cycle_length = animation_length_ms(animation).max(1) as f32;
                 while self.animation_elapsed_ms >= cycle_length {
-                    self.animation_elapsed_ms -= cycle_length;
                     self.completed_iterations = self.completed_iterations.saturating_add(1);
-                    if let Some(max_iters) = self.max_iterations {
-                        if max_iters != 0 && self.completed_iterations >= max_iters {
-                            self.is_complete = true;
-                            break;
-                        }
+
+                    let reached_repeat_limit = self
+                        .max_iterations
+                        .map(|max_iters| max_iters != 0 && self.completed_iterations >= max_iters)
+                        .unwrap_or(false);
+
+                    if reached_repeat_limit || self.is_complete {
+                        self.animation_elapsed_ms = cycle_length;
+                        self.is_complete = true;
+                        break;
                     }
+
+                    self.animation_elapsed_ms -= cycle_length;
                 }
             }
         }
@@ -130,13 +140,13 @@ impl Renderer for ImageRenderer {
         let scaled_width = decoded.width as f32 * scale;
         let scaled_height = decoded.height as f32 * scale;
 
-        let mut start_x = transform.x.floor() as i32;
+        let start_x = transform.x.floor() as i32;
         let mut end_x = (transform.x + scaled_width).ceil() as i32;
         if end_x <= start_x {
             end_x = start_x + 1;
         }
 
-        let mut start_y = transform.y.floor() as i32;
+        let start_y = transform.y.floor() as i32;
         let mut end_y = (transform.y + scaled_height).ceil() as i32;
         if end_y <= start_y {
             end_y = start_y + 1;
