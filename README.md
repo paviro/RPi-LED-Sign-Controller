@@ -12,7 +12,7 @@
 - Control RGB LED matrix panels connected to Raspberry Pi GPIO
 - Web-based configuration interface
 - Text scrolling with customizable speed and colors
-- Two driver options: native Rust or C++ binding
+- Two driver options: native Rust (recommended) or C++ binding
 - Support for various LED matrix panel configurations
 
 ## Quick Install
